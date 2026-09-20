@@ -816,20 +816,27 @@ $('#uploadForm').onsubmit = async (event) => {
   try {
     const item = await uploadMural({
       uid: currentUser.uid,
+      pairId: currentPair?.id || null,
+      uploaderName: profile?.displayName || 'Dino',
       couponId: $('#uploadCoupon').value,
       caption: $('#uploadCaption').value.trim(),
       file
     });
 
     if (!firebaseReady) localDemoMedia.unshift(item);
-    mural = await listMural();
+    mural = await listMural(currentUser.uid, currentPair?.id || null);
     if (!firebaseReady) mural.unshift(...localDemoMedia);
     renderMural();
-    if (profile.role === 'admin') renderAdminMedia();
+    if (profile.role === 'admin') {
+      adminMural = await listAllMural();
+      renderAdminMedia();
+      renderAdminSummary();
+    }
     $('#uploadForm').reset();
     $('#uploadPreview').textContent = 'El archivo aparecerá aquí.';
     $('#uploadDialog').close();
-    toast('Recuerdo guardado en el DinoMural.');
+    playChime('soft');
+    toast(currentPair ? 'Recuerdo guardado en su DinoMural 💜' : 'Recuerdo privado guardado.');
   } catch (error) {
     console.error(error);
     toast('No se pudo subir el recuerdo.');
@@ -841,24 +848,63 @@ $('#uploadForm').onsubmit = async (event) => {
 
 function renderMural() {
   const grid = $('#muralGrid');
+  $('#muralScopeLabel').textContent = currentPair && partnerName
+    ? 'Un espacio privado de ' + (profile?.displayName || 'Tú') + ' y ' + partnerName + '.'
+    : 'Tus recuerdos privados hasta que conectes un DinoDúo.';
+
   grid.innerHTML = mural.length
-    ? mural.map((item, index) => `
-      <article class="mural-card frame-${index % 3} reveal-item">
+    ? mural.map((item, index) => {
+      const owner = item.uploaderName || (item.userId === currentUser?.uid ? (profile?.displayName || 'Tú') : partnerName || 'DinoDúo');
+      return `
+      <article class="mural-card frame-${index % 4} reveal-item" data-mural-id="${item.id}" tabindex="0" role="button" aria-label="Abrir recuerdo">
         <div class="mural-frame-tape tape-left"></div>
         <div class="mural-frame-tape tape-right"></div>
         <div class="mural-media-shell">
           ${item.type === 'video'
-            ? `<video class="mural-media" src="${item.mediaUrl || item.localUrl}" controls preload="metadata"></video>`
-            : `<img class="mural-media" src="${item.mediaUrl || item.localUrl}" alt="Recuerdo del DinoMural" loading="lazy">`}
+            ? `<video class="mural-media" src="${item.mediaUrl || item.localUrl}" preload="metadata" muted playsinline></video><span class="mural-play-badge">▶</span>`
+            : `<img class="mural-media" src="${item.mediaUrl || item.localUrl}" alt="Recuerdo del DinoMural" loading="lazy" decoding="async">`}
         </div>
         <div class="mural-copy">
           <p>${escapeHtml(item.caption || 'Un recuerdo sin título, pero con historia.')}</p>
-          <small>${timeAgo(item.createdAt || new Date())}${item.fileName ? ` · ${escapeHtml(item.fileName)}` : ''}</small>
+          <small>${escapeHtml(owner)} · ${timeAgo(item.createdAt || new Date())}</small>
         </div>
-      </article>`).join('')
-    : `<div class="empty-state"><strong>El mural todavía está vacío.</strong>La primera foto siempre es la que empieza la historia.</div>`;
+      </article>`;
+    }).join('')
+    : `<div class="empty-state"><strong>El mural todavía está vacío.</strong>${currentPair ? 'La primera foto de ustedes puede empezar esta historia.' : 'Puedes guardar recuerdos privados mientras conectas tu DinoDúo.'}</div>`;
+
   observeReveals();
+  $$('[data-mural-id]').forEach((card) => {
+    const open = () => openMuralViewer(card.dataset.muralId);
+    card.onclick = (event) => {
+      if (event.target.closest('button,a')) return;
+      open();
+    };
+    card.onkeydown = (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        open();
+      }
+    };
+  });
 }
+
+function openMuralViewer(id) {
+  const item = mural.find((entry) => entry.id === id);
+  if (!item) return;
+  const url = item.mediaUrl || item.localUrl;
+  $('#muralViewerMedia').innerHTML = item.type === 'video'
+    ? `<video src="${url}" controls autoplay playsinline></video>`
+    : `<img src="${url}" alt="Recuerdo ampliado">`;
+  $('#muralViewerOwner').textContent = item.uploaderName || (item.userId === currentUser.uid ? (profile?.displayName || 'Tú') : partnerName || 'DinoDúo');
+  $('#muralViewerCaption').textContent = item.caption || 'Un recuerdo de nosotros';
+  $('#muralViewerMeta').textContent = fmtDateTime(item.createdAt || new Date());
+  $('#muralViewerDialog').showModal();
+}
+
+$('#closeMuralViewerBtn').onclick = () => {
+  $('#muralViewerMedia').innerHTML = '';
+  $('#muralViewerDialog').close();
+};
 
 $('#notificationBtn').onclick = () => toggleDrawer(true);
 $('#closeNotificationsBtn').onclick = () => toggleDrawer(false);
