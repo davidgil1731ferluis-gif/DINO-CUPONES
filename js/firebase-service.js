@@ -188,12 +188,12 @@ async function waitForPushSubscription(OneSignal, timeoutMs = 5000) {
 
 async function ensurePushSubscription(uid, { prompt = false } = {}) {
   if (!configured || !oneSignalReady || !uid) {
-    return { ok: false, permission: Notification?.permission || 'unsupported', optedIn: false, subscriptionId: null };
+    return { ok: false, permission: typeof Notification !== 'undefined' ? Notification.permission : 'unsupported', optedIn: false, subscriptionId: null };
   }
 
   const OneSignal = await getOneSignal();
   if (!OneSignal) {
-    return { ok: false, permission: Notification?.permission || 'unsupported', optedIn: false, subscriptionId: null };
+    return { ok: false, permission: typeof Notification !== 'undefined' ? Notification.permission : 'unsupported', optedIn: false, subscriptionId: null };
   }
 
   await OneSignal.login(uid);
