@@ -2168,3 +2168,84 @@ button:focus-visible,
   }
   .pair-success-banner{position:relative;padding-right:48px}
 }
+
+
+/* =========================================================
+   DINODÚO UNLINK MANAGEMENT
+   ========================================================= */
+.pair-unlink-panel{
+  width:min(100%,390px);
+  display:grid;
+  gap:10px;
+  padding:13px;
+  border:1px solid #edd2dd;
+  border-radius:18px;
+  background:linear-gradient(145deg,rgba(255,250,252,.95),rgba(255,239,245,.88));
+  box-shadow:0 10px 24px rgba(126,68,93,.08);
+  text-align:left;
+}
+.pair-unlink-panel strong{
+  display:block;
+  color:#7f3f5b;
+  font-size:.8rem;
+}
+.pair-unlink-panel small{
+  display:block;
+  margin-top:3px;
+  color:#9a7283;
+  font-size:.68rem;
+  line-height:1.4;
+}
+.pair-unlink-panel .pair-unlink-btn{
+  width:100%;
+  min-height:44px;
+  border-radius:14px;
+  font-size:.76rem;
+}
+.pair-setup-status{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  align-items:center;
+  gap:12px;
+  padding:14px 16px;
+  border:1px solid #d8e7da;
+  border-radius:18px;
+  background:linear-gradient(145deg,#fbfff9,#f1fbf1);
+  box-shadow:0 12px 26px rgba(61,102,66,.08);
+}
+.pair-setup-status[hidden]{display:none!important}
+.pair-setup-status>span{
+  width:38px;
+  height:38px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  background:linear-gradient(135deg,#7ec98b,#5fad73);
+  color:#fff;
+  font-weight:900;
+}
+.pair-setup-status strong{
+  display:block;
+  color:#41694a;
+  font-size:.88rem;
+}
+.pair-setup-status p{
+  margin:3px 0 0;
+  color:#66826d;
+  font-size:.74rem;
+  line-height:1.45;
+}
+
+@media(max-width:760px){
+  .pair-unlink-panel{
+    width:100%;
+    margin-top:2px;
+  }
+  .pair-unlink-panel .pair-unlink-btn{
+    min-height:48px;
+    font-size:.82rem;
+  }
+  .pair-setup-status{
+    margin:0;
+  }
+}
