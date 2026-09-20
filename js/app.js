@@ -661,10 +661,18 @@ function couponCode(coupon) {
 }
 
 function renderCoupons() {
-  const data = coupons.filter((coupon) => coupon.status === filter);
+  const source = couponView === 'sent' ? sentCoupons : coupons;
+  const data = source.filter((coupon) => couponView === 'sent' || coupon.status === filter);
+  $('#couponFilters').hidden = couponView === 'sent';
+
   $('#couponGrid').innerHTML = data.length
     ? data.map((coupon) => {
       const code = couponCode(coupon);
+      const relationLabel = couponView === 'sent' ? 'Enviado a' : 'Regalado por';
+      const relationName = couponView === 'sent'
+        ? (coupon.assignedToName || partnerName || 'Tu persona')
+        : (coupon.createdByName || 'DinoCupones');
+      const actionText = couponView === 'sent' ? 'Ver estado' : 'Abrir';
       return `
       <article class="coupon-card ticket-coupon ${coupon.status} reveal-item" data-id="${coupon.id}">
         <div class="ticket-main">
@@ -672,7 +680,6 @@ function renderCoupons() {
             <span class="coupon-series">DinoCupones</span>
             <span class="status-pill ${coupon.status}">${labelStatus(coupon.status)}</span>
           </div>
-
           <div class="ticket-content">
             <div class="ticket-icon-wrap">
               <div class="coupon-icon">${coupon.emoji || '💜'}</div>
@@ -684,19 +691,17 @@ function renderCoupons() {
               <p>${escapeHtml(coupon.activity || '')}</p>
             </div>
           </div>
-
           <div class="ticket-meta">
             <div>
               <small>Válido hasta</small>
               <strong>${fmtDate(coupon.expiresAt)}</strong>
             </div>
             <div class="ticket-issued">
-              <small>Edición</small>
-              <strong>Especial</strong>
+              <small>${relationLabel}</small>
+              <strong>${escapeHtml(relationName)}</strong>
             </div>
           </div>
         </div>
-
         <aside class="ticket-stub" aria-label="Talón del cupón">
           <span class="stub-label">ADMIT ONE</span>
           <div class="stub-heart">♥</div>
@@ -704,20 +709,20 @@ function renderCoupons() {
             <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
           </div>
           <code>${code}</code>
-          <button class="mini-btn ticket-open-btn" data-open-coupon="${coupon.id}" type="button">Abrir</button>
+          <button class="mini-btn ticket-open-btn" data-open-coupon="${coupon.id}" data-coupon-source="${couponView}" type="button">${actionText}</button>
         </aside>
       </article>`;
     }).join('')
-    : `<div class="empty-state"><strong>No hay cupones aquí.</strong>Cuando aparezca uno, este espacio dejará de estar tan tranquilo. 🦖</div>`;
+    : `<div class="empty-state"><strong>${couponView === 'sent' ? 'Todavía no has enviado cupones.' : 'No hay cupones aquí.'}</strong>${couponView === 'sent' ? 'Cuando regales uno podrás seguir su estado desde aquí.' : 'Cuando aparezca uno, este espacio dejará de estar tan tranquilo. 🦖'}</div>`;
 
   observeReveals();
   $$('[data-open-coupon]').forEach((button) => {
-    button.onclick = () => openCoupon(button.dataset.openCoupon);
+    button.onclick = () => openCoupon(button.dataset.openCoupon, button.dataset.couponSource || 'received');
   });
 }
 
-function openCoupon(id) {
-  const coupon = coupons.find((item) => item.id === id);
+function openCoupon(id, source = 'received') {
+  const coupon = (source === 'sent' ? sentCoupons : coupons).find((item) => item.id === id);
   if (!coupon) return;
 
   $('#couponDialogEmoji').textContent = coupon.emoji || '💜';
@@ -727,14 +732,17 @@ function openCoupon(id) {
   $('#couponDialogTitle').textContent = coupon.title;
   $('#couponDialogActivity').textContent = coupon.activity;
   $('#couponDialogExpiry').textContent = fmtDateTime(coupon.expiresAt);
+  $('#couponDialogRelation').textContent = source === 'sent'
+    ? 'Enviado a ' + (coupon.assignedToName || partnerName || 'tu persona')
+    : 'Regalado por ' + (coupon.createdByName || 'DinoCupones');
 
   const actions = $('#couponDialogActions');
   actions.innerHTML = '';
-  if (coupon.status === 'active') {
-    actions.innerHTML = `<button class="primary-btn" type="button" data-status="pending">Empezar aventura</button>`;
+  if (source === 'received' && coupon.status === 'active') {
+    actions.innerHTML = '<button class="primary-btn" type="button" data-status="pending">Empezar aventura</button>';
   }
-  if (coupon.status === 'pending') {
-    actions.innerHTML = `<button class="primary-btn" type="button" data-status="completed">Marcar como canjeado</button>`;
+  if (source === 'received' && coupon.status === 'pending') {
+    actions.innerHTML = '<button class="primary-btn" type="button" data-status="completed">Marcar como canjeado</button>';
   }
 
   actions.querySelector('[data-status]')?.addEventListener('click', async (event) => {
