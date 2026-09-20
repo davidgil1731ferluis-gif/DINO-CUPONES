@@ -1,1 +1,28 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#a76bff"/><stop offset="1" stop-color="#ff8ac8"/></linearGradient></defs><rect width="512" height="512" rx="120" fill="#13091f"/><path d="M134 310c0-85 54-155 135-155 66 0 111 39 126 91l-62 13c-10-28-31-45-61-45-43 0-73 34-73 83 0 46 29 78 69 78 21 0 39-8 52-23l45 42c-25 28-58 43-99 43-78 0-132-51-132-127Z" fill="url(#g)"/><circle cx="298" cy="222" r="12" fill="#fff"/><path d="M347 317c-30-23-61 9-42 37l42 48 42-48c19-28-12-60-42-37Z" fill="#ff9dcc"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="DinoCupones">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#ffe6f6"/>
+      <stop offset="100%" stop-color="#d8f8e0"/>
+    </linearGradient>
+    <linearGradient id="dino" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#8b8cff"/>
+      <stop offset="100%" stop-color="#a35cff"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#bg)"/>
+  <path d="M85 23c9 0 16 7 16 16 0 18-17 27-35 42C48 66 31 57 31 39c0-9 7-16 16-16 7 0 12 3 17 9 5-6 10-9 21-9z" fill="#ff73b6" opacity=".9"/>
+  <g transform="translate(18 40)">
+    <ellipse cx="43" cy="39" rx="28" ry="20" fill="url(#dino)"/>
+    <ellipse cx="60" cy="28" rx="18" ry="13" fill="url(#dino)"/>
+    <path d="M42 18c-7 2-13 7-15 14 6-3 12-5 18-6z" fill="#ddd1ff"/>
+    <ellipse cx="63" cy="35" rx="12" ry="8" fill="#ddd1ff"/>
+    <path d="M78 30l9-8-4 11" fill="#fff6fb"/>
+    <path d="M68 20l12-10-5 16" fill="#fff6fb"/>
+    <path d="M58 20l10-8-5 12" fill="#fff6fb"/>
+    <circle cx="66" cy="27" r="2.4" fill="#23204a"/>
+    <path d="M15 36l-8 1 8-8" fill="url(#dino)"/>
+    <rect x="55" y="48" width="11" height="16" rx="4" fill="url(#dino)"/>
+    <rect x="31" y="48" width="11" height="16" rx="4" fill="url(#dino)"/>
+    <rect x="24" y="17" width="14" height="12" rx="5" fill="#ff9ac8" opacity=".95"/>
+  </g>
+</svg>
