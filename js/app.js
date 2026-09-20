@@ -443,12 +443,10 @@ $('#registerForm').onsubmit = async (event) => {
     });
     event.currentTarget.reset();
 
-    if (!firebaseReady) {
-      await enterApp(credential.user);
-      toast('Cuenta demo creada. Ya puedes probarla y volver a iniciar sesión con ella.');
-    } else {
-      toast('Cuenta creada correctamente 💜');
-    }
+    await enterApp(credential.user);
+    toast(firebaseReady
+      ? 'Cuenta creada correctamente 💜'
+      : 'Cuenta demo creada. Ya puedes probarla y volver a iniciar sesión con ella.');
   } catch (error) {
     console.error(error);
     toast(humanAuthError(error));
@@ -475,6 +473,10 @@ function humanAuthError(error) {
   if (code.includes('invalid-email')) return 'Escribe un correo válido.';
   if (code.includes('invalid-display-name')) return 'Escribe un nombre válido.';
   if (code.includes('too-many-requests')) return 'Demasiados intentos. Intenta más tarde.';
+  if (code.includes('operation-not-allowed')) return 'Activa Correo/Contraseña en Firebase Authentication.';
+  if (code.includes('permission-denied')) return 'Firestore rechazó la operación. Revisa que la base de datos y sus reglas estén publicadas.';
+  if (code.includes('failed-precondition')) return 'Firebase todavía necesita una configuración adicional en este proyecto.';
+  if (code.includes('network-request-failed')) return 'No se pudo conectar con Firebase. Revisa tu conexión e inténtalo de nuevo.';
   return error?.message || 'No se pudo completar la operación.';
 }
 
