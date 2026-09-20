@@ -35,7 +35,7 @@ import {
   identifyPushUser,
   clearPushUser,
   onForegroundMessage
-} from './firebase-service.js?v=20260920-12';
+} from './firebase-service.js?v=20260920-13';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
