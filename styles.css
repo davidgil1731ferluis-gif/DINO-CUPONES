@@ -1330,3 +1330,238 @@ input:focus,textarea:focus,select:focus{border-color:#ba96ff;box-shadow:0 0 0 4p
   .pair-message{width:90%}
   .pair-avatars span{width:62px;height:62px;border-radius:20px}
 }
+
+
+/* =========================================================
+   PHASE 3 + 4 — relational coupons, private mural, mobile UX
+   ========================================================= */
+.coupon-heading{align-items:flex-end}
+.coupon-view-switch{
+  display:inline-flex;
+  gap:4px;
+  margin-top:12px;
+  padding:4px;
+  border:1px solid #e8d9ea;
+  border-radius:999px;
+  background:rgba(255,255,255,.76);
+  box-shadow:0 8px 20px rgba(88,54,97,.06);
+}
+.coupon-view-btn{
+  border:0;
+  border-radius:999px;
+  padding:9px 15px;
+  background:transparent;
+  color:#806b84;
+  font-size:.78rem;
+  font-weight:900;
+  cursor:pointer;
+  transition:.2s ease;
+}
+.coupon-view-btn.is-active{
+  color:#fff;
+  background:linear-gradient(135deg,#8758d9,#df72ac);
+  box-shadow:0 7px 16px rgba(112,68,130,.18);
+}
+.coupon-dialog-relation{
+  margin:12px 0 4px;
+  padding:9px 12px;
+  border-radius:14px;
+  background:#faf2ff;
+  border:1px solid #ead8ef;
+  color:#745779;
+  font-size:.8rem;
+  font-weight:800;
+}
+.ticket-issued strong{
+  display:block;
+  max-width:150px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+/* DinoMural becomes a private scrapbook */
+.mural-scope-label{
+  margin:5px 0 0;
+  color:#88748c;
+  font-size:.82rem;
+}
+.mural-card{
+  cursor:pointer;
+  transition:transform .28s ease,box-shadow .28s ease;
+  outline:none;
+}
+.mural-card:hover,.mural-card:focus-visible{
+  transform:translateY(-5px) rotate(0deg)!important;
+  box-shadow:0 24px 52px rgba(92,58,103,.16);
+}
+.mural-card.frame-0{
+  border:8px solid #fffdf8;
+  box-shadow:0 15px 35px rgba(88,60,89,.11);
+}
+.mural-card.frame-1{
+  border:7px solid #f5e8ff;
+  transform:rotate(-1.1deg);
+}
+.mural-card.frame-2{
+  border:7px solid #ffe8f2;
+  transform:rotate(1.15deg);
+}
+.mural-card.frame-3{
+  border:7px solid #edf4e6;
+  transform:rotate(-.55deg);
+}
+.mural-media-shell{
+  position:relative;
+  overflow:hidden;
+  border-radius:16px;
+  background:#efe7f2;
+}
+.mural-media{
+  transition:transform .5s cubic-bezier(.2,.7,.2,1),filter .3s ease;
+}
+.mural-card:hover .mural-media{transform:scale(1.025)}
+.mural-play-badge{
+  position:absolute;
+  inset:0;
+  margin:auto;
+  width:48px;
+  height:48px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  color:#fff;
+  background:rgba(79,46,88,.74);
+  border:1px solid rgba(255,255,255,.5);
+  box-shadow:0 10px 26px rgba(31,20,35,.22);
+  backdrop-filter:blur(8px);
+}
+.mural-copy small{display:block;margin-top:8px;color:#99859c}
+
+.mural-viewer-dialog{
+  width:min(940px,94vw);
+  max-width:none;
+  padding:0;
+  border:0;
+  background:transparent;
+}
+.mural-viewer-dialog::backdrop{
+  background:rgba(34,20,39,.72);
+  backdrop-filter:blur(10px);
+}
+.mural-viewer-card{
+  position:relative;
+  display:grid;
+  grid-template-columns:minmax(0,1.5fr) minmax(260px,.7fr);
+  min-height:440px;
+  max-height:88vh;
+  overflow:hidden;
+  border-radius:30px;
+  background:#fffafc;
+  box-shadow:0 38px 100px rgba(27,14,32,.4);
+}
+.mural-viewer-media{
+  display:grid;
+  place-items:center;
+  min-height:440px;
+  background:linear-gradient(145deg,#2e2032,#4d3154);
+  overflow:hidden;
+}
+.mural-viewer-media img,
+.mural-viewer-media video{
+  width:100%;
+  height:100%;
+  max-height:88vh;
+  object-fit:contain;
+  background:#251b29;
+}
+.mural-viewer-copy{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  padding:34px 30px;
+}
+.mural-viewer-copy h3{
+  margin:12px 0;
+  font-family:"Playfair Display",serif;
+  font-size:2rem;
+  color:#47274f;
+}
+.mural-viewer-copy p{margin:0;color:#8f7992}
+.mural-viewer-card .modal-close{
+  z-index:8;
+  color:#fff;
+  background:rgba(43,25,48,.62);
+  border-color:rgba(255,255,255,.26);
+}
+
+/* Push permission is user initiated, never automatic */
+.notification-permission-card{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin:0 0 14px;
+  padding:13px;
+  border-radius:18px;
+  background:linear-gradient(145deg,#fbf4ff,#fff2f8);
+  border:1px solid #eadced;
+}
+.notification-permission-card strong,
+.notification-permission-card small{display:block}
+.notification-permission-card strong{font-size:.82rem;color:#57345f}
+.notification-permission-card small{margin-top:4px;color:#8b768e;font-size:.7rem;line-height:1.35}
+.notification-permission-card .mini-btn:disabled{opacity:.7;cursor:default}
+
+/* Mobile app shell */
+@media(max-width:760px){
+  .app-shell{padding-bottom:108px}
+  .tabbar{
+    position:fixed;
+    left:12px;
+    right:12px;
+    bottom:max(10px,env(safe-area-inset-bottom));
+    top:auto;
+    z-index:70;
+    display:grid;
+    grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:4px;
+    margin:0;
+    padding:7px;
+    border-radius:22px;
+    box-shadow:0 18px 48px rgba(64,37,72,.23);
+    background:rgba(255,252,254,.91);
+    backdrop-filter:blur(20px);
+  }
+  .tab-btn{
+    min-width:0;
+    flex-direction:column;
+    gap:3px;
+    padding:8px 4px;
+    border-radius:16px;
+    font-size:.64rem;
+    line-height:1.1;
+  }
+  .tab-btn span{font-size:1.15rem}
+  .coupon-heading{align-items:flex-start}
+  .coupon-view-switch{width:100%;display:grid;grid-template-columns:1fr 1fr}
+  .coupon-view-btn{width:100%}
+  .mural-grid{columns:2 160px;column-gap:12px}
+  .mural-card{margin-bottom:12px;padding:9px;border-radius:18px}
+  .mural-card.frame-0,.mural-card.frame-1,.mural-card.frame-2,.mural-card.frame-3{border-width:5px}
+  .mural-copy p{font-size:.8rem;line-height:1.4}
+  .mural-copy small{font-size:.65rem}
+  .mural-viewer-card{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto;max-height:92vh}
+  .mural-viewer-media{min-height:0;height:min(62vh,520px)}
+  .mural-viewer-copy{padding:20px}
+  .mural-viewer-copy h3{font-size:1.55rem}
+  .notification-drawer{padding-bottom:calc(18px + env(safe-area-inset-bottom))}
+}
+@media(max-width:430px){
+  .mural-grid{columns:1}
+  .mural-card{max-width:100%}
+  .ticket-issued strong{max-width:110px}
+}
+@media(prefers-reduced-motion:reduce){
+  .mural-card,.mural-media,.coupon-view-btn{transition:none!important}
+}
