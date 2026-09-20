@@ -96,9 +96,15 @@
         </div>
       </div>
       <p class="auth-lead">Ingresa para ver tus cupones, completar aventuras y guardar sus mejores momentos en el DinoMural.</p>
-      <form id="loginForm" class="form-stack">
+
+      <div class="auth-mode-switch" role="tablist" aria-label="Acceso a DinoCupones">
+        <button id="showLoginBtn" class="auth-mode-btn is-active" type="button" role="tab" aria-selected="true">Ingresar</button>
+        <button id="showRegisterBtn" class="auth-mode-btn" type="button" role="tab" aria-selected="false">Crear cuenta</button>
+      </div>
+
+      <form id="loginForm" class="form-stack auth-form-panel">
         <label>
-          <span>Usuario o correo</span>
+          <span>Correo</span>
           <input id="loginEmail" type="email" autocomplete="username" placeholder="tu@correo.com" required />
         </label>
         <label>
@@ -110,8 +116,39 @@
         </label>
         <button class="primary-btn wide" type="submit">Ingresar</button>
       </form>
-      <button id="forgotPasswordBtn" class="text-btn" type="button">¿Olvidaste tu contraseña?</button>
-      <p class="auth-note">El administrador puede ayudarte enviando un enlace seguro de restablecimiento.</p>
+
+      <form id="registerForm" class="form-stack auth-form-panel" hidden>
+        <div class="register-intro">
+          <strong>Crea tu DinoPerfil 🦕</strong>
+          <span>Tu cuenta se crea como usuario normal. Después podrás vincularla con otra persona desde DinoDúo.</span>
+        </div>
+        <label>
+          <span>Nombre</span>
+          <input id="registerName" type="text" autocomplete="name" maxlength="50" placeholder="¿Cómo quieres aparecer?" required />
+        </label>
+        <label>
+          <span>Correo</span>
+          <input id="registerEmail" type="email" autocomplete="email" placeholder="tu@correo.com" required />
+        </label>
+        <label>
+          <span>Contraseña</span>
+          <div class="password-wrap">
+            <input id="registerPassword" type="password" autocomplete="new-password" minlength="6" placeholder="Mínimo 6 caracteres" required />
+            <button id="toggleRegisterPasswordBtn" type="button" class="icon-btn" aria-label="Mostrar contraseña">◉</button>
+          </div>
+        </label>
+        <label>
+          <span>Confirmar contraseña</span>
+          <input id="registerPasswordConfirm" type="password" autocomplete="new-password" minlength="6" placeholder="Repite tu contraseña" required />
+        </label>
+        <button class="primary-btn wide" type="submit">Crear mi cuenta</button>
+        <p class="register-privacy">Tu contraseña nunca se guarda en Firestore. Firebase Authentication será quien la gestione cuando conectemos el proyecto.</p>
+      </form>
+
+      <div id="loginHelpArea">
+        <button id="forgotPasswordBtn" class="text-btn" type="button">¿Olvidaste tu contraseña?</button>
+        <p class="auth-note">El administrador puede ayudarte enviando un enlace seguro de restablecimiento.</p>
+      </div>
     </main>
   </section>
 
