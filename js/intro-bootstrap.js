@@ -100,7 +100,7 @@
     revealLetter();
   }
 
-  const APP_BUILD = '20260920-11';
+  const APP_BUILD = '20260920-12';
   let updateReloading = false;
 
   async function checkForUpdate(forceReload = false) {
