@@ -745,7 +745,11 @@ function openCoupon(id) {
     renderCoupons();
     renderHero();
     renderSummary();
-    if (profile.role === 'admin') { renderAdminCoupons(); renderAdminSummary(); }
+    if (profile.role === 'admin') {
+      adminCoupons = await listAllCoupons();
+      renderAdminCoupons();
+      renderAdminSummary();
+    }
     if (nextStatus === 'completed') {
       playChime('complete');
       celebrateFrom(origin || event.target);
@@ -883,18 +887,26 @@ $('#couponForm').onsubmit = async (event) => {
   const submitter = event.submitter;
   submitter.disabled = true;
   try {
+    const recipientUid = $('#couponRecipient').value;
+    const recipient = users.find((user) => user.uid === recipientUid);
+    if (!recipientUid) throw new Error('Selecciona un destinatario.');
+
     await createCoupon({
+      pairId: currentPair?.memberUids?.includes(recipientUid) ? currentPair.id : null,
+      createdByUid: currentUser.uid,
+      createdByName: profile?.displayName || 'Administrador',
+      assignedToUid: recipientUid,
+      assignedToName: recipient?.displayName || recipient?.email || 'Destinatario',
       title: $('#couponTitle').value.trim(),
       activity: $('#couponActivity').value.trim(),
-      expiresAt: new Date($('#couponExpiry').value),
-      createdBy: currentUser.uid
+      expiresAt: new Date($('#couponExpiry').value)
     });
     event.target.reset();
     await refreshAll();
-    toast('Cupón publicado.');
+    toast('Cupón enviado al destinatario.');
   } catch (error) {
     console.error(error);
-    toast('No se pudo publicar el cupón.');
+    toast(error?.message || 'No se pudo publicar el cupón.');
   } finally {
     submitter.disabled = false;
   }
@@ -905,11 +917,14 @@ $('#messageForm').onsubmit = async (event) => {
   const submitter = event.submitter;
   submitter.disabled = true;
   try {
+    const targetUid = $('#messageRecipient').value;
     await sendMessage({
-      targetUid: $('#messageRecipient').value,
+      pairId: currentPair?.memberUids?.includes(targetUid) ? currentPair.id : null,
+      senderUid: currentUser.uid,
+      senderName: profile?.displayName || 'Administrador',
+      targetUid,
       title: $('#messageTitle').value.trim(),
-      body: $('#messageBody').value.trim(),
-      createdBy: currentUser.uid
+      body: $('#messageBody').value.trim()
     });
     event.target.reset();
     messages = await listMessages(currentUser.uid);
@@ -925,8 +940,12 @@ $('#messageForm').onsubmit = async (event) => {
 };
 
 function renderRecipients() {
-  $('#messageRecipient').innerHTML = '<option value="all">Todos</option>' + users
-    .filter((user) => user.role !== 'admin' || user.uid !== currentUser.uid)
+  const available = users.filter((user) => user.uid !== currentUser.uid);
+  $('#messageRecipient').innerHTML = '<option value="all">Todos</option>' + available
+    .map((user) => `<option value="${user.uid}">${escapeHtml(user.displayName || user.email || user.uid)}</option>`)
+    .join('');
+
+  $('#couponRecipient').innerHTML = '<option value="">Selecciona una persona</option>' + available
     .map((user) => `<option value="${user.uid}">${escapeHtml(user.displayName || user.email || user.uid)}</option>`)
     .join('');
 }
@@ -971,12 +990,12 @@ function renderAdminMedia() {
 }
 
 function renderAdminCoupons() {
-  $('#adminCouponsList').innerHTML = coupons.length
-    ? coupons.map((coupon) => `
+  $('#adminCouponsList').innerHTML = adminCoupons.length
+    ? adminCoupons.map((coupon) => `
       <div class="admin-row admin-row-stack">
         <div>
           <strong>${escapeHtml(coupon.title)}</strong>
-          <small>${labelStatus(coupon.status)} · vence ${fmtDate(coupon.expiresAt)}</small>
+          <small>${labelStatus(coupon.status)} · para ${escapeHtml(coupon.assignedToName || 'destinatario')} · vence ${fmtDate(coupon.expiresAt)}</small>
         </div>
         <div class="admin-actions-inline">
           <button class="mini-btn" data-reset-coupon="${coupon.id}" type="button">Restablecer</button>
