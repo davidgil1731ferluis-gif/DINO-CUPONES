@@ -715,18 +715,40 @@ async function refreshAll(pairOverride = undefined) {
   currentPair = pairOverride !== undefined
     ? pairOverride
     : await getPairForUser(currentUser.uid);
+
   partnerUid = currentPair?.memberUids?.find((uid) => uid !== currentUser.uid) || null;
   partnerName = partnerUid
     ? (currentPair?.memberNames?.[partnerUid] || 'Tu persona favorita')
     : '';
 
-  [coupons, mural, messages, sentCoupons, pairMessages] = await Promise.all([
-    listCoupons(currentUser.uid, currentPair?.id || null),
-    listMural(currentUser.uid, currentPair?.id || null),
-    listMessages(currentUser.uid, currentPair?.id || null),
-    currentPair ? listSentCoupons(currentUser.uid, currentPair.id) : Promise.resolve([]),
-    currentPair ? listPairMessages(currentPair.id) : Promise.resolve([])
-  ]);
+  // El estado del DinoDúo es prioritario: se pinta antes de cualquier
+  // consulta secundaria para que el usuario nunca quede atrapado en
+  // "Crear invitación" si el vínculo ya existe.
+  renderPairWorkspace();
+
+  const [couponsResult, muralResult, messagesResult, sentResult, pairMessagesResult] =
+    await Promise.allSettled([
+      listCoupons(currentUser.uid, currentPair?.id || null),
+      listMural(currentUser.uid, currentPair?.id || null),
+      listMessages(currentUser.uid, currentPair?.id || null),
+      currentPair ? listSentCoupons(currentUser.uid, currentPair.id) : Promise.resolve([]),
+      currentPair ? listPairMessages(currentPair.id) : Promise.resolve([])
+    ]);
+
+  if (couponsResult.status === 'fulfilled') coupons = couponsResult.value;
+  else console.warn('No se pudieron cargar los cupones.', couponsResult.reason);
+
+  if (muralResult.status === 'fulfilled') mural = muralResult.value;
+  else console.warn('No se pudo cargar el DinoMural.', muralResult.reason);
+
+  if (messagesResult.status === 'fulfilled') messages = messagesResult.value;
+  else console.warn('No se pudieron cargar los mensajes.', messagesResult.reason);
+
+  if (sentResult.status === 'fulfilled') sentCoupons = sentResult.value;
+  else console.warn('No se pudieron cargar los cupones enviados.', sentResult.reason);
+
+  if (pairMessagesResult.status === 'fulfilled') pairMessages = pairMessagesResult.value;
+  else console.warn('No se pudo cargar la conversación del DinoDúo.', pairMessagesResult.reason);
 
   if (localDemoMedia.length) {
     const visibleDemoMedia = localDemoMedia.filter((item) => item.pairId
@@ -743,19 +765,19 @@ async function refreshAll(pairOverride = undefined) {
   renderPairWorkspace();
 
   if (profile.role === 'admin') {
-    const [usersResult, couponsResult, muralResult] = await Promise.allSettled([
+    const [usersResult, adminCouponsResult, adminMuralResult] = await Promise.allSettled([
       listUsers(),
       listAllCoupons(),
       listAllMural()
     ]);
 
     users = usersResult.status === 'fulfilled' ? usersResult.value : users;
-    adminCoupons = couponsResult.status === 'fulfilled' ? couponsResult.value : adminCoupons;
-    adminMural = muralResult.status === 'fulfilled' ? muralResult.value : adminMural;
+    adminCoupons = adminCouponsResult.status === 'fulfilled' ? adminCouponsResult.value : adminCoupons;
+    adminMural = adminMuralResult.status === 'fulfilled' ? adminMuralResult.value : adminMural;
 
     if (usersResult.status === 'rejected') console.warn('No se pudo cargar la lista de usuarios.', usersResult.reason);
-    if (couponsResult.status === 'rejected') console.warn('No se pudo cargar el consolidado de cupones.', couponsResult.reason);
-    if (muralResult.status === 'rejected') console.warn('No se pudo cargar el consolidado del mural.', muralResult.reason);
+    if (adminCouponsResult.status === 'rejected') console.warn('No se pudo cargar el consolidado de cupones.', adminCouponsResult.reason);
+    if (adminMuralResult.status === 'rejected') console.warn('No se pudo cargar el consolidado del mural.', adminMuralResult.reason);
 
     renderAdminUsers();
     renderRecipients();
@@ -935,7 +957,13 @@ $('#generatePairCodeBtn').onclick = async () => {
     toast('Código de vínculo generado.');
   } catch (error) {
     console.error(error);
-    toast(error?.message || 'No se pudo generar el código.');
+    const message = error?.message || 'No se pudo generar el código.';
+    if (message.includes('cerrar tu DinoDúo actual')) {
+      toast('Detectamos que ya tienes un DinoDúo activo. Sincronizando…');
+      await syncPairState({announce:true,full:false});
+    } else {
+      toast(message);
+    }
   } finally {
     button.disabled = false;
   }
