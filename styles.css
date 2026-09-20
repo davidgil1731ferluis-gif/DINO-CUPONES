@@ -52,13 +52,13 @@ img,video{max-width:100%}
 .intro-bg-image{
   position:absolute;
   inset:-3%;
-  z-index:-5;
+  z-index:0;
   width:106%;
   height:106%;
   max-width:none;
   object-fit:cover;
   object-position:center 56%;
-  filter:saturate(1.08) contrast(1.02);
+  filter:saturate(1.18) contrast(1.06) brightness(.98);
   transform:scale(1.025);
   animation:introLandscape 12s ease-out both;
   will-change:transform;
@@ -66,21 +66,21 @@ img,video{max-width:100%}
 .intro-color-wash{
   position:absolute;
   inset:0;
-  z-index:-4;
+  z-index:1;
   pointer-events:none;
   background:
-    radial-gradient(circle at 18% 18%,rgba(255,216,237,.38),transparent 34%),
-    radial-gradient(circle at 82% 24%,rgba(202,180,255,.24),transparent 30%),
-    linear-gradient(180deg,rgba(78,35,89,.04),rgba(54,27,69,.02) 48%,rgba(45,28,50,.15));
+    radial-gradient(circle at 18% 18%,rgba(255,216,237,.16),transparent 32%),
+    radial-gradient(circle at 82% 24%,rgba(202,180,255,.10),transparent 30%),
+    linear-gradient(180deg,rgba(78,35,89,.015),rgba(54,27,69,.01) 52%,rgba(45,28,50,.10));
 }
 .intro-vignette{
   position:absolute;
   inset:0;
-  z-index:-3;
+  z-index:2;
   pointer-events:none;
-  box-shadow:inset 0 0 140px rgba(59,31,66,.16);
+  box-shadow:inset 0 0 120px rgba(39,23,47,.12);
 }
-.intro-sparkles{position:absolute;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
+.intro-sparkles{position:absolute;inset:0;z-index:4;pointer-events:none;overflow:hidden}
 .intro-sparkles i{
   position:absolute;
   width:9px;
@@ -501,8 +501,8 @@ input:focus,textarea:focus,select:focus{border-color:#ba96ff;box-shadow:0 0 0 4p
 
 /* PNG intro responsive override */
 @media(max-width:760px){
-  .intro-bg-image{object-position:center 52%;filter:saturate(1.08) brightness(.98)}
-  .intro-color-wash{background:linear-gradient(180deg,rgba(255,235,247,.13),rgba(55,30,61,.03) 58%,rgba(44,27,47,.18))}
+  .intro-bg-image{object-position:center 52%;filter:saturate(1.16) contrast(1.05) brightness(.98)}
+  .intro-color-wash{background:linear-gradient(180deg,rgba(255,235,247,.06),rgba(55,30,61,.015) 58%,rgba(44,27,47,.10))}
   .intro-copy{left:16px;right:16px;top:70px;width:auto;max-width:none;padding:19px 20px 18px;border-radius:24px}
   .intro-copy h1{font-size:clamp(2rem,9.6vw,3.1rem);margin:11px 0 11px}
   .intro-copy p{font-size:.9rem;line-height:1.55}
@@ -537,7 +537,7 @@ input:focus,textarea:focus,select:focus{border-color:#ba96ff;box-shadow:0 0 0 4p
 .intro-ambient{
   position:absolute;
   inset:0;
-  z-index:-2;
+  z-index:3;
   overflow:hidden;
   pointer-events:none;
 }
@@ -2049,4 +2049,32 @@ button:focus-visible,
   .header-actions .icon-bubble{width:38px;height:38px;flex-basis:38px}
   .profile-pill-button{width:40px;height:40px;flex-basis:40px}
   #logoutBtn{min-width:52px;padding:8px 9px;font-size:.76rem}
+}
+
+
+/* Intro background visibility hardening */
+.intro-screen::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:-1;
+  background:
+    linear-gradient(180deg,#f4e7fb 0%,#ead8f4 54%,#decbe7 100%);
+}
+.intro-bg-image{
+  display:block!important;
+  opacity:1!important;
+  visibility:visible!important;
+}
+.intro-copy,.intro-skip,.png-dino-stage,.letter-delivery{
+  position:absolute;
+}
+@media(max-width:760px){
+  .intro-bg-image{
+    inset:0;
+    width:100%;
+    height:100%;
+    transform:scale(1.03);
+    object-position:center center;
+  }
 }
