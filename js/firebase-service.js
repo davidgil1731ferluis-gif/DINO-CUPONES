@@ -1,21 +1,24 @@
-import { firebaseConfig, vapidKey } from './firebase-config.js';
+import { firebaseConfig } from './firebase-config.js';
+import {
+  integrationsConfig,
+  cloudinaryReady,
+  oneSignalReady,
+  workerReady
+} from './integrations-config.js';
 
 const V = '12.19.0';
 const appMod = await import('https://www.gstatic.com/firebasejs/' + V + '/firebase-app.js');
 const authMod = await import('https://www.gstatic.com/firebasejs/' + V + '/firebase-auth.js');
 const fsMod = await import('https://www.gstatic.com/firebasejs/' + V + '/firebase-firestore.js');
-const stMod = await import('https://www.gstatic.com/firebasejs/' + V + '/firebase-storage.js');
-const msgMod = await import('https://www.gstatic.com/firebasejs/' + V + '/firebase-messaging.js');
-
 const configured = firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('TU_');
 
-let app = null, auth = null, db = null, storage = null, messaging = null;
+let app = null, auth = null, db = null;
+let oneSignalPromise = null;
+
 if (configured) {
   app = appMod.initializeApp(firebaseConfig);
   auth = authMod.getAuth(app);
   db = fsMod.getFirestore(app);
-  storage = stMod.getStorage(app);
-  if (msgMod.isSupported && await msgMod.isSupported()) messaging = msgMod.getMessaging(app);
 }
 
 const demoNow = Date.now();
@@ -77,6 +80,89 @@ function authError(code, message) {
 }
 
 export const firebaseReady = configured;
+export const mediaReady = configured && cloudinaryReady && workerReady;
+export const pushReady = configured && oneSignalReady && workerReady;
+
+async function currentIdToken() {
+  if (!configured || !auth?.currentUser) throw new Error('Debes iniciar sesión.');
+  return auth.currentUser.getIdToken();
+}
+
+async function workerPost(path, payload) {
+  if (!workerReady) throw new Error('El servicio externo todavía no está configurado.');
+  const token = await currentIdToken();
+  const base = integrationsConfig.apiBaseUrl.replace(/\/$/, '');
+  const response = await fetch(base + path, {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + token,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload || {})
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(data?.error || 'Error en el servicio externo.');
+    error.details = data;
+    throw error;
+  }
+  return data;
+}
+
+async function getOneSignal() {
+  if (!oneSignalReady) return null;
+  if (oneSignalPromise) return oneSignalPromise;
+
+  oneSignalPromise = new Promise((resolve, reject) => {
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    window.OneSignalDeferred.push(async function (OneSignal) {
+      try {
+        await OneSignal.init({
+          appId: integrationsConfig.oneSignal.appId,
+          serviceWorkerPath: integrationsConfig.oneSignal.serviceWorkerPath,
+          serviceWorkerParam: {
+            scope: integrationsConfig.oneSignal.serviceWorkerScope
+          },
+          notifyButton: { enable: false }
+        });
+        resolve(OneSignal);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  });
+
+  return oneSignalPromise;
+}
+
+export async function identifyPushUser(uid) {
+  if (!configured || !oneSignalReady || !uid) return false;
+  const OneSignal = await getOneSignal();
+  if (!OneSignal) return false;
+  await OneSignal.login(uid);
+  return true;
+}
+
+export async function clearPushUser() {
+  if (!oneSignalReady) return;
+  try {
+    const OneSignal = await getOneSignal();
+    await OneSignal?.logout();
+  } catch (error) {
+    console.warn('No se pudo cerrar la sesión de OneSignal.', error);
+  }
+}
+
+async function notifyPush(payload) {
+  if (!configured || !workerReady || !oneSignalReady) return false;
+  try {
+    await workerPost('/notify', payload);
+    return true;
+  } catch (error) {
+    console.warn('La acción se guardó, pero la notificación push no pudo enviarse.', error);
+    return false;
+  }
+}
 
 function asDate(value) {
   if (!value) return new Date();
@@ -395,6 +481,14 @@ export async function createCoupon(payload){
     expiresAt: normalized.expiresAt instanceof Date ? fsMod.Timestamp.fromDate(normalized.expiresAt) : normalized.expiresAt,
     createdAt:fsMod.serverTimestamp()
   });
+
+  notifyPush({
+    targetUid: normalized.assignedToUid,
+    pairId: normalized.pairId || null,
+    title: 'Nuevo DinoCupón 🦕',
+    body: (normalized.createdByName || 'Tu persona') + ' te regaló “' + normalized.title + '”.'
+  }).catch(()=>{});
+
   return {id:ref.id,...normalized,createdAt:new Date()};
 }
 
@@ -476,22 +570,57 @@ export async function uploadMural({uid,pairId=null,uploaderName='',couponId,capt
     createdAt:new Date(),
     fileName:file.name
   };
-  const clean=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
-  const scope=pairId||uid;
-  const path='mural/'+scope+'/'+uid+'/'+Date.now()+'_'+clean;
-  const r=stMod.ref(storage,path);
-  await stMod.uploadBytes(r,file,{contentType:file.type});
-  const mediaUrl=await stMod.getDownloadURL(r);
+
+  if (!mediaReady) {
+    throw new Error('Cloudinary todavía no está configurado.');
+  }
+  if (!file?.type?.match(/^(image|video)\//)) {
+    throw new Error('Solo puedes subir imágenes o videos.');
+  }
+  if (file.size > 50 * 1024 * 1024) {
+    throw new Error('El archivo supera el límite de 50 MB configurado para DinoMural.');
+  }
+
+  const resourceType=file.type.startsWith('video/')?'video':'image';
+  const signed=await workerPost('/cloudinary/sign',{
+    pairId:pairId||null,
+    resourceType
+  });
+
+  const form=new FormData();
+  form.append('file',file);
+  form.append('api_key',signed.apiKey);
+  form.append('timestamp',String(signed.timestamp));
+  form.append('signature',signed.signature);
+  form.append('folder',signed.folder);
+  form.append('public_id',signed.publicId);
+  form.append('upload_preset',signed.uploadPreset);
+
+  const uploadResponse=await fetch(
+    'https://api.cloudinary.com/v1_1/' +
+      encodeURIComponent(signed.cloudName) + '/' +
+      encodeURIComponent(signed.resourceType) + '/upload',
+    {method:'POST',body:form}
+  );
+  const uploaded=await uploadResponse.json().catch(()=>({}));
+  if(!uploadResponse.ok){
+    throw new Error(uploaded?.error?.message || 'Cloudinary rechazó el archivo.');
+  }
+
   const data={
     userId:uid,
     pairId:pairId||null,
     uploaderName:uploaderName||'',
     couponId:couponId||null,
     caption:caption||'',
-    type:file.type.startsWith('video/')?'video':'image',
-    mediaUrl,
-    mediaPath:path,
+    type:resourceType,
+    provider:'cloudinary',
+    mediaUrl:uploaded.secure_url,
+    mediaPublicId:uploaded.public_id,
+    mediaPath:uploaded.public_id,
     fileName:file.name,
+    bytes:uploaded.bytes||file.size,
+    format:uploaded.format||null,
     createdAt:fsMod.serverTimestamp()
   };
   const docRef=await fsMod.addDoc(fsMod.collection(db,'mural'),data);
@@ -557,6 +686,14 @@ export async function sendMessage(payload){
     return item;
   }
   const ref=await fsMod.addDoc(fsMod.collection(db,'messages'),{...payload,createdAt:fsMod.serverTimestamp()});
+
+  notifyPush({
+    targetUid: payload.targetUid,
+    pairId: payload.pairId || null,
+    title: payload.title || ((payload.senderName || 'Tu persona') + ' te escribió 💌'),
+    body: payload.body || 'Tienes un nuevo mensaje.'
+  }).catch(()=>{});
+
   return {id:ref.id,...payload,createdAt:new Date()};
 }
 export async function markMessageRead(id){
@@ -580,16 +717,42 @@ export async function listUsers(){
 }
 
 export async function requestPushPermission(uid){
-  if(!configured||!messaging||Notification.permission==='denied') return false;
-  const permission=await Notification.requestPermission();
-  if(permission!=='granted')return false;
-  const reg=await navigator.serviceWorker.ready;
-  const token=await msgMod.getToken(messaging,{vapidKey,serviceWorkerRegistration:reg});
-  if(!token)return false;
-  await fsMod.addDoc(fsMod.collection(db,'users',uid,'devices'),{token,createdAt:fsMod.serverTimestamp(),userAgent:navigator.userAgent});
-  return true;
+  if(!configured || !oneSignalReady || !uid) return false;
+  if(Notification.permission==='denied') return false;
+
+  const OneSignal=await getOneSignal();
+  if(!OneSignal) return false;
+
+  await OneSignal.login(uid);
+  await OneSignal.Notifications.requestPermission();
+  return Notification.permission==='granted';
 }
+
 export function onForegroundMessage(callback){
-  if(!messaging)return()=>{};
-  return msgMod.onMessage(messaging,callback);
+  let cleanup=()=>{};
+  if(!oneSignalReady) return cleanup;
+
+  getOneSignal().then((OneSignal)=>{
+    if(!OneSignal?.Notifications) return;
+
+    const handler=(event)=>{
+      const notification=event?.notification || event;
+      callback({
+        notification:{
+          title:notification?.title || 'DinoCupones',
+          body:notification?.body || notification?.message || ''
+        }
+      });
+    };
+
+    if(typeof OneSignal.Notifications.addEventListener==='function'){
+      OneSignal.Notifications.addEventListener('foregroundWillDisplay',handler);
+      cleanup=()=>OneSignal.Notifications.removeEventListener?.('foregroundWillDisplay',handler);
+    }else if(typeof OneSignal.Notifications.addForegroundLifecycleListener==='function'){
+      OneSignal.Notifications.addForegroundLifecycleListener(handler);
+      cleanup=()=>OneSignal.Notifications.removeForegroundLifecycleListener?.(handler);
+    }
+  }).catch((error)=>console.warn('OneSignal no pudo inicializarse.',error));
+
+  return ()=>cleanup();
 }
