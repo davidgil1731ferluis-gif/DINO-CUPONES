@@ -2,7 +2,7 @@ name: Apply DinoCupones PNG intro patch
 on:
   push:
     paths:
-      - ".patch/READY3"
+      - ".patch/READY4"
 permissions:
   contents: write
 jobs:
@@ -13,7 +13,7 @@ jobs:
       - name: Rebuild and verify prepared patch
         shell: bash
         run: |
-          cat .patch/chunks3/part.* | tr -d '\n' | base64 -d > /tmp/dinopatch.tar.gz
+          cat .patch/chunks4/part.* | tr -d '\n' | base64 -d > /tmp/dinopatch.tar.gz
           tar -tzf /tmp/dinopatch.tar.gz >/dev/null
           tar -xzf /tmp/dinopatch.tar.gz -C .
           rm -rf .patch
