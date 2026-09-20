@@ -274,6 +274,14 @@
             </div>
           </article>
 
+          <div id="pairSetupStatus" class="pair-setup-status" hidden role="status" aria-live="polite">
+            <span>✓</span>
+            <div>
+              <strong>DinoDúo cerrado correctamente</strong>
+              <p>Tu cuenta ya está libre para crear o aceptar un nuevo vínculo.</p>
+            </div>
+          </div>
+
           <article class="pair-card">
             <div class="card-title"><span>🔗</span><div><h4>Crear invitación</h4><p>Genera un código para compartir con la otra persona.</p></div></div>
             <button id="generatePairCodeBtn" class="primary-btn wide" type="button">Generar código</button>
@@ -321,7 +329,13 @@
                 <button class="pair-quick-btn" data-scroll-pair="#pairCouponForm" type="button">🎟️ Crear cupón</button>
                 <button class="pair-quick-btn" data-scroll-pair="#pairMessageForm" type="button">💌 Enviar mensaje</button>
               </div>
-              <button id="unlinkPairBtn" class="pair-unlink-btn" type="button">Desvincular DinoDúo</button>
+              <div class="pair-unlink-panel">
+                <div>
+                  <strong>Administrar vínculo</strong>
+                  <small>Puedes cerrar este DinoDúo y volver a vincular tu cuenta después.</small>
+                </div>
+                <button id="unlinkPairBtn" class="pair-unlink-btn" type="button">💔 Desvincular DinoDúo</button>
+              </div>
             </div>
           </article>
 
