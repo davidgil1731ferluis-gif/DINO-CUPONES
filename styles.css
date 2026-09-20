@@ -2283,3 +2283,42 @@ button:focus-visible,
     flex:0 0 auto;
   }
 }
+
+
+/* =========================================================
+   PUSH SELF TEST
+   ========================================================= */
+.push-test-card{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  margin-top:10px;
+  padding:14px 15px;
+  border:1px solid #eadbea;
+  border-radius:18px;
+  background:linear-gradient(145deg,#fffdfd,#fbf5ff);
+}
+.push-test-card>div{min-width:0}
+.push-test-card strong{display:block;color:#5f3a69;font-size:.82rem}
+.push-test-card small{
+  display:block;
+  margin-top:3px;
+  color:#89748d;
+  font-size:.68rem;
+  line-height:1.45;
+}
+.push-test-result{
+  margin-top:7px!important;
+  padding:7px 9px;
+  border-radius:10px;
+  background:#f7f1f8;
+  overflow-wrap:anywhere;
+}
+.push-test-result.is-ok{background:#edf9ef;color:#4f8059;font-weight:800}
+.push-test-result.is-warning{background:#fff7e9;color:#9a6f35;font-weight:800}
+.push-test-result.is-error{background:#fff0f3;color:#a14e69;font-weight:800}
+@media(max-width:520px){
+  .push-test-card{flex-direction:column}
+  .push-test-card .mini-btn{width:100%}
+}
