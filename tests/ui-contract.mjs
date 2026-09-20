@@ -2,7 +2,7 @@ import fs from 'node:fs';
 
 const html = fs.readFileSync('index.html', 'utf8');
 const app = fs.readFileSync('js/app.js', 'utf8');
-const service = fs.readFileSync('js/firebase-service.js', 'utf8');
+const service = fs.readFileSync('js/firebase-service.js', 'utf8');\nconst intro = fs.readFileSync('js/intro-bootstrap.js', 'utf8');
 
 const errors = [];
 const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map(match => match[1]);
@@ -28,7 +28,7 @@ if (singleSelectorForEach.length) {
 
 if (/\${3,}\(/.test(app)) errors.push('Selector helper inválido: hay $$$ o más.');
 if (!app.includes('registerAccount')) errors.push('El flujo de registro no está conectado en app.js.');
-if (!service.includes('export async function registerAccount')) errors.push('Falta registerAccount en firebase-service.js.');
+if (!service.includes('export async function registerAccount')) errors.push('Falta registerAccount en firebase-service.js.');\nif (!html.includes('intro-bootstrap.js')) errors.push('Falta cargar intro-bootstrap.js en index.html.');\nif (!intro.includes("window.DinoIntro")) errors.push('El bootstrap de la intro no expone DinoIntro.');\nif (/await import\\('https:\\/\\/www\\.gstatic\\.com/.test(service.split('async function ensureFirebase')[0] || '')) errors.push('Firebase vuelve a bloquear el arranque con imports remotos top-level.');
 
 const required = [
   'loginForm','registerForm','showLoginBtn','showRegisterBtn','demoAccessBtn',
