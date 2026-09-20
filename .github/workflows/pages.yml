@@ -27,6 +27,8 @@ jobs:
           node --check /tmp/app.mjs
           node --check /tmp/firebase-service.mjs
           node --check functions/index.js
+          node --check tests/ui-contract.mjs
+          node tests/ui-contract.mjs
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
