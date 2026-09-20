@@ -48,6 +48,9 @@ if (!app.includes('registerAccount')) errors.push('El flujo de registro no está
 if (!service.includes('export async function registerAccount')) errors.push('Falta registerAccount en firebase-service.js.');
 if (!html.includes('intro-bootstrap.js')) errors.push('Falta cargar intro-bootstrap.js en index.html.');
 if (!intro.includes('window.DinoIntro')) errors.push('El bootstrap de la intro no expone DinoIntro.');
+if (!html.includes('id="unlinkPairBtn"')) errors.push('Falta el botón para desvincular DinoDúo.');
+if (!html.includes('id="pairSetupStatus"')) errors.push('Falta confirmación visual al cerrar DinoDúo.');
+if (!intro.includes("navigator.serviceWorker.register('./sw.js'")) errors.push('La PWA instalada no actualiza el service worker desde el arranque.');
 
 const beforeEnsure = service.split('async function ensureFirebase')[0] || '';
 if (/await import\('https:\/\/www\.gstatic\.com/.test(beforeEnsure)) {
