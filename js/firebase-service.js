@@ -416,9 +416,10 @@ export async function acceptPairInvite({uid,displayName,code}) {
   const existingPair = await getPairForUser(uid);
   if (existingPair) throw new Error('Ya tienes un vínculo activo.');
 
-  const inviterPair = await getPairForUser(invite.fromUid);
-  if (inviterPair) throw new Error('La otra persona ya tiene un DinoDúo activo.');
-
+  // No consultamos los pares privados del invitador desde la cuenta receptora.
+  // Firestore bloquea correctamente esa lectura porque el usuario actual todavía
+  // no pertenece a esos pares. La invitación pendiente y las reglas de creación
+  // validan que ambos UID formen el nuevo DinoDúo.
   const pairRef = fsMod.doc(fsMod.collection(db,'pairs'));
   const pairId = pairRef.id;
   const batch = fsMod.writeBatch(db);
