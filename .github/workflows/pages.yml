@@ -25,10 +25,12 @@ jobs:
           cp js/app.js /tmp/app.mjs
           cp js/firebase-service.js /tmp/firebase-service.mjs
           cp js/integrations-config.js /tmp/integrations-config.mjs
+          cp js/intro-bootstrap.js /tmp/intro-bootstrap.js
           cp worker/src/index.js /tmp/worker.mjs
           node --check /tmp/app.mjs
           node --check /tmp/firebase-service.mjs
           node --check /tmp/integrations-config.mjs
+          node --check /tmp/intro-bootstrap.js
           node --check /tmp/worker.mjs
           node --check tests/ui-contract.mjs
           node tests/ui-contract.mjs
