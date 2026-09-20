@@ -1,0 +1,13 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn(){ return request.auth != null; }
+    function isAdmin(){ return signedIn() && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin'; }
+    match /mural/{uid}/{fileName} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.auth.uid == uid && request.resource.size < 80 * 1024 * 1024 && request.resource.contentType.matches('(image|video)/.*');
+      allow delete: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow update: if false;
+    }
+  }
+}
