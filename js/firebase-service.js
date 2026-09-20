@@ -27,12 +27,13 @@ async function ensureFirebase() {
     import('https://www.gstatic.com/firebasejs/' + V + '/firebase-app.js'),
     import('https://www.gstatic.com/firebasejs/' + V + '/firebase-auth.js'),
     import('https://www.gstatic.com/firebasejs/' + V + '/firebase-firestore.js')
-  ]).then(([appSdk, authSdk, firestoreSdk]) => {
+  ]).then(async ([appSdk, authSdk, firestoreSdk]) => {
     appMod = appSdk;
     authMod = authSdk;
     fsMod = firestoreSdk;
     app = appMod.initializeApp(firebaseConfig);
     auth = authMod.getAuth(app);
+    await authMod.setPersistence(auth, authMod.browserSessionPersistence);
     db = fsMod.getFirestore(app);
     return true;
   }).catch((error) => {
@@ -311,6 +312,26 @@ export async function resetPassword(email){
   if(configured) await ensureFirebase();
   if(!configured) return true;
   return authMod.sendPasswordResetEmail(auth,email);
+}
+
+export async function deleteCurrentAccount(password){
+  if(!configured) throw new Error('Esta acción solo está disponible con Firebase conectado.');
+  await ensureFirebase();
+
+  const user=auth.currentUser;
+  if(!user?.email) throw new Error('No se encontró una cuenta activa.');
+
+  const credential=authMod.EmailAuthProvider.credential(user.email,password);
+  await authMod.reauthenticateWithCredential(user,credential);
+
+  const pair=await getPairForUser(user.uid);
+  if(pair?.id){
+    await unlinkPair({pairId:pair.id,uid:user.uid});
+  }
+
+  await fsMod.deleteDoc(fsMod.doc(db,'users',user.uid));
+  await authMod.deleteUser(user);
+  return true;
 }
 
 export async function getProfile(uid){
@@ -619,6 +640,13 @@ export async function listAllMural(){
   if(!configured) return [];
   const snap=await fsMod.getDocs(fsMod.collection(db,'mural'));
   return sortNewest(snap.docs.map(d=>({id:d.id,...d.data(),createdAt:asDate(d.data().createdAt)})));
+}
+
+export async function deleteMural(muralId){
+  if(configured) await ensureFirebase();
+  if(!configured) return true;
+  if(!muralId) throw new Error('Recuerdo inválido.');
+  return workerPost('/mural/delete',{muralId});
 }
 
 export async function uploadMural({uid,pairId=null,uploaderName='',couponId,caption,file}){
