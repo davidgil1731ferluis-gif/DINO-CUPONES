@@ -497,14 +497,19 @@
   <aside id="notificationDrawer" class="notification-drawer" aria-hidden="true">
     <div class="drawer-head"><div><span class="eyebrow">Para ti</span><h3>Mensajes</h3></div><button id="closeNotificationsBtn" class="icon-btn" type="button">×</button></div>
     <div class="notification-permission-card">
-      <div><strong>Notificaciones en tu celular</strong><small id="notificationPermissionText">Actívalas para recibir nuevos cupones y mensajes.</small></div>
+      <div>
+        <strong>Notificaciones en tu celular</strong>
+        <small id="notificationPermissionText">Actívalas para recibir nuevos cupones y mensajes.</small>
+        <small id="pushSubscriptionStatus" class="push-subscription-status">Comprobando suscripción OneSignal…</small>
+      </div>
       <button id="enableNotificationsBtn" class="mini-btn" type="button">Activar</button>
     </div>
     <div id="notificationList" class="notification-list"></div>
   </aside>
   <div id="drawerBackdrop" class="drawer-backdrop"></div>
 
-  <script src="./js/intro-bootstrap.js?v=20260920-11" defer></script>\n  <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+  <script src="./js/intro-bootstrap.js?v=20260920-11" defer></script>
+  <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
   <script type="module" src="./js/app.js?v=20260920-11"></script>
 </body>
 </html>
