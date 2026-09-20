@@ -1,19 +1,184 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    function signedIn(){ return request.auth != null; }
-    function isAdmin(){ return signedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'; }
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function pairExists(pairId) {
+      return pairId is string
+        && exists(/databases/$(database)/documents/pairs/$(pairId));
+    }
+
+    function pairData(pairId) {
+      return get(/databases/$(database)/documents/pairs/$(pairId)).data;
+    }
+
+    function isPairMember(pairId, uid) {
+      return pairExists(pairId)
+        && pairData(pairId).active == true
+        && uid in pairData(pairId).memberUids;
+    }
+
+    function pairConnects(pairId, uidA, uidB) {
+      return isPairMember(pairId, uidA)
+        && uidB in pairData(pairId).memberUids;
+    }
+
     match /users/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
-      allow create: if signedIn() && request.auth.uid == uid && request.resource.data.role == 'user';
-      allow update: if signedIn() && request.auth.uid == uid && request.resource.data.role == resource.data.role;
+
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.role == 'user';
+
+      allow update: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.role == resource.data.role;
+
       allow delete: if isAdmin();
-      match /devices/{id}{ allow read: if signedIn() && (request.auth.uid == uid || isAdmin()); allow write: if signedIn() && request.auth.uid == uid; }
+
+      match /devices/{id} {
+        allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+        allow write: if signedIn() && request.auth.uid == uid;
+      }
     }
-    match /coupons/{id}{ allow read: if signedIn(); allow write: if isAdmin(); }
-    match /couponClaims/{id}{ allow read: if signedIn() && (resource.data.userId == request.auth.uid || isAdmin()); allow create: if signedIn() && request.resource.data.userId == request.auth.uid; allow update: if signedIn() && resource.data.userId == request.auth.uid; allow delete: if isAdmin(); }
-    match /mural/{id}{ allow read: if signedIn(); allow create: if signedIn() && request.resource.data.userId == request.auth.uid; allow update,delete: if signedIn() && (resource.data.userId == request.auth.uid || isAdmin()); }
-    match /messages/{id}{ allow read: if signedIn() && (resource.data.targetUid == request.auth.uid || resource.data.targetUid == 'all' || isAdmin()); allow write: if isAdmin(); }
-    match /messageReads/{id}{ allow read,create,update,delete: if signedIn(); }
+
+    match /pairInvites/{code} {
+      // El código funciona como secreto de invitación: no se permite listar invitaciones.
+      allow get: if signedIn();
+      allow list: if isAdmin();
+
+      allow create: if signedIn()
+        && request.resource.data.fromUid == request.auth.uid
+        && request.resource.data.status == 'pending';
+
+      allow update: if isAdmin()
+        || (
+          signedIn()
+          && resource.data.status == 'pending'
+          && resource.data.fromUid != request.auth.uid
+          && request.resource.data.fromUid == resource.data.fromUid
+          && request.resource.data.status == 'accepted'
+          && request.resource.data.toUid == request.auth.uid
+          && request.resource.data.pairId is string
+        );
+
+      allow delete: if isAdmin()
+        || (signedIn() && resource.data.fromUid == request.auth.uid);
+    }
+
+    match /pairs/{pairId} {
+      allow read: if signedIn()
+        && (isAdmin() || request.auth.uid in resource.data.memberUids);
+
+      allow create: if signedIn()
+        && request.resource.data.active == true
+        && request.resource.data.memberUids is list
+        && request.resource.data.memberUids.size() == 2
+        && request.auth.uid in request.resource.data.memberUids
+        && request.resource.data.inviteCode is string
+        && exists(/databases/$(database)/documents/pairInvites/$(request.resource.data.inviteCode))
+        && get(/databases/$(database)/documents/pairInvites/$(request.resource.data.inviteCode)).data.fromUid in request.resource.data.memberUids
+        && get(/databases/$(database)/documents/pairInvites/$(request.resource.data.inviteCode)).data.fromUid != request.auth.uid;
+
+      allow update, delete: if isAdmin();
+    }
+
+    match /coupons/{id} {
+      allow read: if signedIn()
+        && (
+          isAdmin()
+          || resource.data.assignedToUid == request.auth.uid
+          || resource.data.createdByUid == request.auth.uid
+        );
+
+      allow create: if isAdmin()
+        || (
+          signedIn()
+          && request.resource.data.createdByUid == request.auth.uid
+          && request.resource.data.assignedToUid != request.auth.uid
+          && pairConnects(
+            request.resource.data.pairId,
+            request.auth.uid,
+            request.resource.data.assignedToUid
+          )
+        );
+
+      // Quien recibe el cupón solo puede avanzar su estado.
+      allow update: if isAdmin()
+        || (
+          signedIn()
+          && resource.data.assignedToUid == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+          && request.resource.data.status in ['active', 'pending', 'completed']
+        );
+
+      allow delete: if isAdmin();
+    }
+
+    match /couponClaims/{id} {
+      allow read: if signedIn()
+        && (resource.data.userId == request.auth.uid || isAdmin());
+
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && exists(/databases/$(database)/documents/coupons/$(request.resource.data.couponId))
+        && get(/databases/$(database)/documents/coupons/$(request.resource.data.couponId)).data.assignedToUid == request.auth.uid;
+
+      allow update: if signedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.couponId == resource.data.couponId;
+
+      allow delete: if isAdmin();
+    }
+
+    match /mural/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if signedIn()
+        && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    match /messages/{id} {
+      allow read: if signedIn()
+        && (
+          isAdmin()
+          || resource.data.targetUid == request.auth.uid
+          || resource.data.senderUid == request.auth.uid
+          || resource.data.targetUid == 'all'
+        );
+
+      allow create: if isAdmin()
+        || (
+          signedIn()
+          && request.resource.data.senderUid == request.auth.uid
+          && request.resource.data.targetUid != request.auth.uid
+          && pairConnects(
+            request.resource.data.pairId,
+            request.auth.uid,
+            request.resource.data.targetUid
+          )
+        );
+
+      allow update, delete: if isAdmin();
+    }
+
+    match /messageReads/{id} {
+      allow read: if signedIn()
+        && (resource.data.userId == request.auth.uid || isAdmin());
+
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid;
+
+      allow update, delete: if signedIn()
+        && (resource.data.userId == request.auth.uid || isAdmin());
+    }
   }
 }
