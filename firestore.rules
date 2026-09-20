@@ -87,15 +87,34 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/pairInvites/$(request.resource.data.inviteCode)).data.fromUid in request.resource.data.memberUids
         && get(/databases/$(database)/documents/pairInvites/$(request.resource.data.inviteCode)).data.fromUid != request.auth.uid;
 
-      allow update, delete: if isAdmin();
+      allow update: if isAdmin()
+        || (
+          signedIn()
+          && request.auth.uid in resource.data.memberUids
+          && resource.data.active == true
+          && request.resource.data.active == false
+          && request.resource.data.unlinkedBy == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['active', 'unlinkedBy', 'unlinkedAt'])
+        );
+
+      allow delete: if isAdmin();
     }
 
     match /coupons/{id} {
       allow read: if signedIn()
         && (
           isAdmin()
-          || resource.data.assignedToUid == request.auth.uid
-          || resource.data.createdByUid == request.auth.uid
+          || (
+            (
+              !('pairId' in resource.data)
+              || resource.data.pairId == null
+              || isPairMember(resource.data.pairId, request.auth.uid)
+            )
+            && (
+              resource.data.assignedToUid == request.auth.uid
+              || resource.data.createdByUid == request.auth.uid
+            )
+          )
         );
 
       allow create: if isAdmin()
@@ -115,6 +134,11 @@ service cloud.firestore {
         || (
           signedIn()
           && resource.data.assignedToUid == request.auth.uid
+          && (
+            !('pairId' in resource.data)
+            || resource.data.pairId == null
+            || isPairMember(resource.data.pairId, request.auth.uid)
+          )
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
           && request.resource.data.status in ['active', 'pending', 'completed']
         );
@@ -174,9 +198,18 @@ service cloud.firestore {
       allow read: if signedIn()
         && (
           isAdmin()
-          || resource.data.targetUid == request.auth.uid
-          || resource.data.senderUid == request.auth.uid
-          || resource.data.targetUid == 'all'
+          || (
+            (
+              !('pairId' in resource.data)
+              || resource.data.pairId == null
+              || isPairMember(resource.data.pairId, request.auth.uid)
+            )
+            && (
+              resource.data.targetUid == request.auth.uid
+              || resource.data.senderUid == request.auth.uid
+              || resource.data.targetUid == 'all'
+            )
+          )
         );
 
       allow create: if isAdmin()
