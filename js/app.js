@@ -962,7 +962,7 @@ $('#pairMessageForm').onsubmit = async (event) => {
   }
 };
 
-$('[data-scroll-pair]').forEach((button) => {
+document.querySelectorAll('[data-scroll-pair]').forEach((button) => {
   button.onclick = () => {
     const target = $(button.dataset.scrollPair);
     if (!target) return;
@@ -972,10 +972,10 @@ $('[data-scroll-pair]').forEach((button) => {
   };
 });
 
-$('.tab-btn').forEach((button) => {
+document.querySelectorAll('.tab-btn').forEach((button) => {
   button.onclick = () => {
     const tab = button.dataset.tab;
-    $$('.tab-btn').forEach((item) => item.classList.toggle('is-active', item === button));
+    $document.querySelectorAll('.tab-btn').forEach((item) => item.classList.toggle('is-active', item === button));
     $$('.tab-panel').forEach((panel) => panel.classList.remove('is-active'));
     $(`#${tab}Tab`).classList.add('is-active');
   };
@@ -1237,7 +1237,7 @@ function renderMural() {
     : `<div class="empty-state"><strong>El mural todavía está vacío.</strong>${currentPair ? 'La primera foto de ustedes puede empezar esta historia.' : 'Puedes guardar recuerdos privados mientras conectas tu DinoDúo.'}</div>`;
 
   observeReveals();
-  $('[data-mural-id]').forEach((card) => {
+  document.querySelectorAll('[data-mural-id]').forEach((card) => {
     const open = () => openMuralViewer(card.dataset.muralId);
     card.onclick = (event) => {
       if (event.target.closest('button,a')) return;
@@ -1252,7 +1252,7 @@ function renderMural() {
   });
 
 
-  $('[data-delete-mural]').forEach((button) => {
+  document.querySelectorAll('[data-delete-mural]').forEach((button) => {
     button.onclick = async (event) => {
       event.stopPropagation();
       const id = button.dataset.deleteMural;
@@ -1514,7 +1514,7 @@ function renderAdminMedia() {
       </div>`).join('')
     : '<div class="empty-state"><strong>Sin archivos.</strong></div>';
 
-  $('[data-admin-delete-mural]').forEach((button) => {
+  document.querySelectorAll('[data-admin-delete-mural]').forEach((button) => {
     button.onclick = async () => {
       const id = button.dataset.adminDeleteMural;
       if (!safeConfirm('¿Eliminar este recuerdo y su archivo original?')) return;
