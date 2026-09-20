@@ -10,7 +10,7 @@ export const integrationsConfig = {
 
   // El App ID de OneSignal es público y puede vivir en el frontend.
   oneSignal: {
-    appId: 'TU_ONESIGNAL_APP_ID',
+    appId: 'e5ad39b8-8cfe-40e9-848c-cdaf86078df6',
     serviceWorkerPath: 'onesignal/OneSignalSDKWorker.js',
     serviceWorkerScope: '/DINO-CUPONES/onesignal/'
   }
