@@ -50,6 +50,9 @@ if (!html.includes('intro-bootstrap.js')) errors.push('Falta cargar intro-bootst
 if (!intro.includes('window.DinoIntro')) errors.push('El bootstrap de la intro no expone DinoIntro.');
 if (!html.includes('id="unlinkPairBtn"')) errors.push('Falta el botón para desvincular DinoDúo.');
 if (!html.includes('id="pairSetupStatus"')) errors.push('Falta confirmación visual al cerrar DinoDúo.');
+if (!html.includes('id="pushSubscriptionStatus"')) errors.push('Falta diagnóstico de suscripción OneSignal.');
+if (!service.includes('export async function getPushStatus')) errors.push('Falta getPushStatus para validar OneSignal.');
+if (!service.includes('subscription.optIn')) errors.push('Falta reparar suscripciones OneSignal con optIn().');
 if (!intro.includes('updateViaCache')) errors.push('La PWA no fuerza actualización sin caché del service worker.');
 
 const beforeEnsure = service.split('async function ensureFirebase')[0] || '';
