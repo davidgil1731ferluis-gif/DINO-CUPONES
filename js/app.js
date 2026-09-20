@@ -225,6 +225,7 @@ function resetSessionState() {
     if (dialog?.open) dialog.close();
   });
   toggleDrawer(false);
+  $('.tabbar')?.classList.remove('has-admin');
   setAuthMode('login');
 }
 
@@ -488,7 +489,9 @@ async function enterApp(user) {
   $('#userName').textContent = profile.displayName || 'Dino';
   $('#userRole').textContent = profile.role === 'admin' ? 'Administrador' : 'Invitado especial';
   $('#userAvatar').textContent = (profile.displayName || 'D')[0].toUpperCase();
-  $('#adminTabBtn').hidden = profile.role !== 'admin';
+  const isAdmin = profile.role === 'admin';
+  $('#adminTabBtn').hidden = !isAdmin;
+  $('.tabbar').classList.toggle('has-admin', isAdmin);
   showScreen('#appScreen');
   await refreshAll();
 
