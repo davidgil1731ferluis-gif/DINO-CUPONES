@@ -136,6 +136,27 @@ async function getFirestoreDocument(path, idToken, env) {
   );
 }
 
+async function deleteFirestoreDocument(path, idToken, env) {
+  const url =
+    'https://firestore.googleapis.com/v1/projects/' +
+    encodeURIComponent(env.FIREBASE_PROJECT_ID) +
+    '/databases/(default)/documents/' +
+    path;
+
+  const response = await fetch(url, {
+    method: 'DELETE',
+    headers: { Authorization: 'Bearer ' + idToken }
+  });
+
+  if (!response.ok && response.status !== 404) {
+    const error = new Error('FIRESTORE_DENIED');
+    error.status = response.status;
+    throw error;
+  }
+
+  return true;
+}
+
 async function requireActivePair(pairId, uid, targetUid, token, env) {
   if (!pairId) throw new Error('PAIR_REQUIRED');
   const pair = await getFirestoreDocument('pairs/' + encodeURIComponent(pairId), token, env);
@@ -192,6 +213,57 @@ async function cloudinarySignature(request, auth, env) {
     timestamp,
     signature
   };
+}
+
+async function deleteMuralAsset(request, auth, env) {
+  const body = await request.json().catch(() => ({}));
+  const muralId = String(body.muralId || '').trim();
+  if (!muralId) throw new Error('MURAL_REQUIRED');
+
+  const mural = await getFirestoreDocument('mural/' + encodeURIComponent(muralId), auth.token, env);
+  const owner = mural.userId === auth.uid;
+  const admin = owner ? false : await isAdmin(auth.uid, auth.token, env);
+
+  if (!owner && !admin) throw new Error('MURAL_DENIED');
+
+  if (mural.provider === 'cloudinary' && mural.mediaPublicId) {
+    const resourceType = mural.type === 'video' ? 'video' : 'image';
+    const timestamp = Math.floor(Date.now() / 1000);
+    const params = {
+      invalidate: 'true',
+      public_id: String(mural.mediaPublicId),
+      timestamp: String(timestamp)
+    };
+    const canonical = Object.keys(params)
+      .sort()
+      .map(key => key + '=' + params[key])
+      .join('&');
+    const signature = await sha1Hex(canonical + env.CLOUDINARY_API_SECRET);
+
+    const form = new FormData();
+    form.append('public_id', params.public_id);
+    form.append('timestamp', params.timestamp);
+    form.append('invalidate', params.invalidate);
+    form.append('api_key', env.CLOUDINARY_API_KEY);
+    form.append('signature', signature);
+
+    const response = await fetch(
+      'https://api.cloudinary.com/v1_1/' +
+        encodeURIComponent(env.CLOUDINARY_CLOUD_NAME) + '/' +
+        resourceType + '/destroy',
+      { method: 'POST', body: form }
+    );
+
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !['ok','not found'].includes(result.result)) {
+      const error = new Error('CLOUDINARY_DELETE_ERROR');
+      error.details = result;
+      throw error;
+    }
+  }
+
+  await deleteFirestoreDocument('mural/' + encodeURIComponent(muralId), auth.token, env);
+  return { ok: true, muralId };
 }
 
 async function sendOneSignalNotification(request, auth, env) {
@@ -293,13 +365,17 @@ export default {
         return json(await sendOneSignalNotification(request, auth, env), 200, env);
       }
 
+      if (url.pathname === '/mural/delete' && request.method === 'POST') {
+        return json(await deleteMuralAsset(request, auth, env), 200, env);
+      }
+
       return json({ error: 'NOT_FOUND' }, 404, env);
     } catch (error) {
       const code = error?.message || 'UNKNOWN_ERROR';
       const authCodes = new Set(['AUTH_MISSING','AUTH_INVALID','AUTH_EXPIRED']);
       const deniedCodes = new Set([
         'ORIGIN_DENIED','PAIR_REQUIRED','PAIR_INVALID','TARGET_INVALID','ADMIN_REQUIRED',
-        'FIRESTORE_DENIED'
+        'FIRESTORE_DENIED','MURAL_REQUIRED','MURAL_DENIED'
       ]);
 
       console.error(code, error?.details || '');
