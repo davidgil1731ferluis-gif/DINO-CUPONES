@@ -161,13 +161,93 @@ async function getOneSignal() {
   return oneSignalPromise;
 }
 
+function oneSignalPushSubscription(OneSignal) {
+  return OneSignal?.User?.PushSubscription
+    || OneSignal?.User?.pushSubscription
+    || null;
+}
+
+async function waitForPushSubscription(OneSignal, timeoutMs = 5000) {
+  const started = Date.now();
+  let subscription = oneSignalPushSubscription(OneSignal);
+
+  while (Date.now() - started < timeoutMs) {
+    const id = subscription?.id || null;
+    const optedIn = subscription?.optedIn === true;
+    if (id && optedIn) return { subscription, id, optedIn };
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    subscription = oneSignalPushSubscription(OneSignal);
+  }
+
+  return {
+    subscription,
+    id: subscription?.id || null,
+    optedIn: subscription?.optedIn === true
+  };
+}
+
+async function ensurePushSubscription(uid, { prompt = false } = {}) {
+  if (!configured || !oneSignalReady || !uid) {
+    return { ok: false, permission: Notification?.permission || 'unsupported', optedIn: false, subscriptionId: null };
+  }
+
+  const OneSignal = await getOneSignal();
+  if (!OneSignal) {
+    return { ok: false, permission: Notification?.permission || 'unsupported', optedIn: false, subscriptionId: null };
+  }
+
+  await OneSignal.login(uid);
+
+  if (prompt && typeof Notification !== 'undefined' && Notification.permission === 'default') {
+    await OneSignal.Notifications.requestPermission();
+  }
+
+  const subscription = oneSignalPushSubscription(OneSignal);
+
+  if (
+    typeof Notification !== 'undefined'
+    && Notification.permission === 'granted'
+    && subscription
+    && subscription.optedIn !== true
+    && typeof subscription.optIn === 'function'
+  ) {
+    try {
+      await subscription.optIn();
+    } catch (error) {
+      console.warn('OneSignal no pudo activar la suscripción push.', error);
+    }
+  }
+
+  const state = await waitForPushSubscription(OneSignal);
+  const permission = typeof Notification !== 'undefined' ? Notification.permission : 'unsupported';
+
+  return {
+    ok: permission === 'granted' && state.optedIn && Boolean(state.id),
+    permission,
+    optedIn: state.optedIn,
+    subscriptionId: state.id,
+    externalId: OneSignal?.User?.externalId || uid
+  };
+}
+
 export async function identifyPushUser(uid) {
   if(configured) await ensureFirebase();
-  if (!configured || !oneSignalReady || !uid) return false;
-  const OneSignal = await getOneSignal();
-  if (!OneSignal) return false;
-  await OneSignal.login(uid);
-  return true;
+  const status = await ensurePushSubscription(uid, { prompt: false });
+  return status.ok;
+}
+
+export async function getPushStatus(uid) {
+  if(configured) await ensureFirebase();
+  if (!configured || !oneSignalReady || !uid) {
+    return {
+      ok: false,
+      permission: typeof Notification !== 'undefined' ? Notification.permission : 'unsupported',
+      optedIn: false,
+      subscriptionId: null,
+      externalId: uid || null
+    };
+  }
+  return ensurePushSubscription(uid, { prompt: false });
 }
 
 export async function clearPushUser() {
@@ -182,13 +262,30 @@ export async function clearPushUser() {
 }
 
 async function notifyPush(payload) {
-  if (!configured || !workerReady || !oneSignalReady) return false;
+  if (!configured || !workerReady || !oneSignalReady) {
+    return { ok: false, reason: 'PUSH_NOT_READY', recipients: 0 };
+  }
+
   try {
-    await workerPost('/notify', payload);
-    return true;
+    const result = await workerPost('/notify', payload);
+    const recipients = Number.isFinite(Number(result?.recipients))
+      ? Number(result.recipients)
+      : null;
+
+    if (recipients === 0) {
+      console.warn('OneSignal aceptó la solicitud, pero no encontró suscripciones activas para el destinatario.', result);
+      return { ok: false, reason: 'NO_SUBSCRIBED_DEVICE', recipients: 0, result };
+    }
+
+    return {
+      ok: true,
+      recipients,
+      notificationId: result?.id || null,
+      result
+    };
   } catch (error) {
     console.warn('La acción se guardó, pero la notificación push no pudo enviarse.', error);
-    return false;
+    return { ok: false, reason: 'PUSH_ERROR', recipients: 0, error };
   }
 }
 
@@ -567,14 +664,14 @@ export async function createCoupon(payload){
     createdAt:fsMod.serverTimestamp()
   });
 
-  notifyPush({
+  const push = await notifyPush({
     targetUid: normalized.assignedToUid,
     pairId: normalized.pairId || null,
     title: 'Nuevo DinoCupón 🦕',
     body: (normalized.createdByName || 'Tu persona') + ' te regaló “' + normalized.title + '”.'
-  }).catch(()=>{});
+  });
 
-  return {id:ref.id,...normalized,createdAt:new Date()};
+  return {id:ref.id,...normalized,createdAt:new Date(),push};
 }
 
 export async function setCouponProgress(uid,couponId,status){
@@ -807,14 +904,14 @@ export async function sendMessage(payload){
   }
   const ref=await fsMod.addDoc(fsMod.collection(db,'messages'),{...payload,createdAt:fsMod.serverTimestamp()});
 
-  notifyPush({
+  const push = await notifyPush({
     targetUid: payload.targetUid,
     pairId: payload.pairId || null,
     title: payload.title || ((payload.senderName || 'Tu persona') + ' te escribió 💌'),
     body: payload.body || 'Tienes un nuevo mensaje.'
-  }).catch(()=>{});
+  });
 
-  return {id:ref.id,...payload,createdAt:new Date()};
+  return {id:ref.id,...payload,createdAt:new Date(),push};
 }
 export async function markMessageRead(id){
   if(configured) await ensureFirebase();
@@ -841,14 +938,10 @@ export async function listUsers(){
 export async function requestPushPermission(uid){
   if(configured) await ensureFirebase();
   if(!configured || !oneSignalReady || !uid) return false;
-  if(Notification.permission==='denied') return false;
+  if(typeof Notification === 'undefined' || Notification.permission==='denied') return false;
 
-  const OneSignal=await getOneSignal();
-  if(!OneSignal) return false;
-
-  await OneSignal.login(uid);
-  await OneSignal.Notifications.requestPermission();
-  return Notification.permission==='granted';
+  const status = await ensurePushSubscription(uid, { prompt: true });
+  return status.ok;
 }
 
 export function onForegroundMessage(callback){
