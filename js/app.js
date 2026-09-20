@@ -194,6 +194,104 @@ function setButtonBusy(button, busy, busyText = 'Procesando...') {
   }
 }
 
+let deferredInstallPrompt = null;
+
+function isIosDevice() {
+  return /iphone|ipad|ipod/i.test(navigator.userAgent);
+}
+
+function isAndroidDevice() {
+  return /android/i.test(navigator.userAgent);
+}
+
+function isStandaloneApp() {
+  return window.matchMedia('(display-mode: standalone)').matches
+    || window.navigator.standalone === true;
+}
+
+function renderInstallAvailability() {
+  const installed = isStandaloneApp();
+  const mobile = isIosDevice() || isAndroidDevice();
+  $('[data-install-app]').forEach((button) => {
+    button.hidden = installed || (!mobile && !deferredInstallPrompt);
+  });
+}
+
+function renderInstallInstructions() {
+  const text = $('#installDialogText');
+  const steps = $('#installSteps');
+  const action = $('#installDialogActionBtn');
+  if (!text || !steps || !action) return;
+
+  action.hidden = true;
+  action.onclick = null;
+
+  if (deferredInstallPrompt) {
+    text.textContent = 'DinoCupones puede instalarse como una aplicación independiente en este dispositivo.';
+    steps.innerHTML = '<div><b>1</b><span>Pulsa “Instalar ahora”.</span></div><div><b>2</b><span>Confirma la instalación del navegador.</span></div><div><b>3</b><span>Abre DinoCupones desde su nuevo ícono.</span></div>';
+    action.hidden = false;
+    action.onclick = triggerNativeInstall;
+    return;
+  }
+
+  if (isIosDevice()) {
+    text.textContent = 'En iPhone o iPad debes agregar DinoCupones a la pantalla de inicio antes de activar las notificaciones.';
+    steps.innerHTML = '<div><b>1</b><span>Pulsa el botón Compartir del navegador.</span></div><div><b>2</b><span>Elige “Agregar a pantalla de inicio”.</span></div><div><b>3</b><span>Abre DinoCupones desde el ícono instalado y activa las notificaciones.</span></div>';
+    return;
+  }
+
+  if (isAndroidDevice()) {
+    text.textContent = 'Puedes instalar DinoCupones desde Chrome como una aplicación.';
+    steps.innerHTML = '<div><b>1</b><span>Abre el menú ⋮ de Chrome.</span></div><div><b>2</b><span>Elige “Instalar aplicación” o “Agregar a pantalla principal”.</span></div><div><b>3</b><span>Abre DinoCupones desde el nuevo ícono.</span></div>';
+    return;
+  }
+
+  text.textContent = 'Tu navegador permite instalar aplicaciones web desde su menú o desde el icono de instalación en la barra de direcciones.';
+  steps.innerHTML = '<div><b>1</b><span>Busca “Instalar aplicación” en el navegador.</span></div><div><b>2</b><span>Confirma la instalación.</span></div>';
+}
+
+async function triggerNativeInstall() {
+  if (!deferredInstallPrompt) return;
+  const prompt = deferredInstallPrompt;
+  deferredInstallPrompt = null;
+  await prompt.prompt();
+  const choice = await prompt.userChoice.catch(() => null);
+  if (choice?.outcome === 'accepted') {
+    $('#installDialog')?.close();
+    toast('DinoCupones se está instalando 💜');
+  }
+  renderInstallAvailability();
+}
+
+function openInstallDialog() {
+  if (isStandaloneApp()) {
+    toast('DinoCupones ya está instalada en este dispositivo.');
+    return;
+  }
+  renderInstallInstructions();
+  $('#installDialog').showModal();
+}
+
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+  renderInstallAvailability();
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  renderInstallAvailability();
+  $('#installDialog')?.open && $('#installDialog').close();
+  toast('DinoCupones instalada correctamente 🦖💜');
+});
+
+$('[data-install-app]').forEach((button) => {
+  button.onclick = openInstallDialog;
+});
+$('#closeInstallDialogBtn').onclick = () => $('#installDialog').close();
+
+renderInstallAvailability();
+
 function setAuthMode(mode = 'login') {
   const loginMode = mode === 'login';
   $('#loginForm').hidden = !loginMode;
@@ -224,7 +322,7 @@ function resetSessionState() {
   couponView = 'received';
   $$('.chip').forEach((item) => item.classList.toggle('is-active', item.dataset.filter === 'active'));
   $$('[data-coupon-view]').forEach((item) => item.classList.toggle('is-active', item.dataset.couponView === 'received'));
-  ['#couponDialog','#uploadDialog','#muralViewerDialog'].forEach((selector) => {
+  ['#couponDialog','#uploadDialog','#muralViewerDialog','#installDialog'].forEach((selector) => {
     const dialog = $(selector);
     if (dialog?.open) dialog.close();
   });
@@ -514,6 +612,7 @@ async function enterApp(user) {
     });
   }
   renderNotificationPermissionState();
+  renderInstallAvailability();
 }
 
 async function refreshAll() {
@@ -1107,6 +1206,12 @@ function renderNotificationPermissionState() {
     label.textContent = 'Falta completar la configuración de OneSignal y Cloudflare.';
     return;
   }
+  if (isIosDevice() && !isStandaloneApp()) {
+    button.disabled = false;
+    button.textContent = 'Instalar primero';
+    label.textContent = 'En iPhone/iPad, instala DinoCupones en la pantalla de inicio antes de activar notificaciones.';
+    return;
+  }
   if (!('Notification' in window)) {
     button.disabled = true;
     button.textContent = 'No disponible';
@@ -1131,6 +1236,10 @@ function renderNotificationPermissionState() {
 }
 
 $('#enableNotificationsBtn').onclick = async () => {
+  if (isIosDevice() && !isStandaloneApp()) {
+    openInstallDialog();
+    return;
+  }
   try {
     const enabled = await requestPushPermission(currentUser.uid);
     renderNotificationPermissionState();
