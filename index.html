@@ -296,6 +296,14 @@
         </div>
 
         <div id="pairConnectedView" class="pair-connected" hidden>
+          <div id="pairSuccessBanner" class="pair-success-banner" hidden role="status" aria-live="polite">
+            <span class="pair-success-icon">✓</span>
+            <div>
+              <strong>DinoDúo enlazado con éxito 💞</strong>
+              <p id="pairSuccessText">Las dos cuentas ya están conectadas.</p>
+            </div>
+            <button id="dismissPairSuccessBtn" type="button" aria-label="Cerrar confirmación">×</button>
+          </div>
           <article class="pair-hero">
             <div class="pair-avatars" aria-hidden="true">
               <span id="pairAvatarMe">D</span>
@@ -358,7 +366,7 @@
         <div class="admin-grid">
           <form id="couponForm" class="admin-card glass-panel">
             <div class="card-title"><span>🎟️</span><div><h4>Nuevo cupón</h4><p>Publica una nueva experiencia.</p></div></div>
-            <label><span>Destinatario</span><select id="couponRecipient" required></select></label>
+            <label class="recipient-field"><span>Destinatario</span><select id="couponRecipient" required></select><small id="couponRecipientHint" class="field-hint">Cargando personas…</small></label>
             <label><span>Nombre del cupón</span><input id="couponTitle" required maxlength="80" placeholder="Cena sorpresa" /></label>
             <label><span>Actividad para canjearlo</span><textarea id="couponActivity" required maxlength="500" placeholder="Una cena elegida por..." rows="4"></textarea></label>
             <label><span>Fecha de vencimiento</span><input id="couponExpiry" type="datetime-local" required /></label>
@@ -367,7 +375,7 @@
 
           <form id="messageForm" class="admin-card glass-panel">
             <div class="card-title"><span>💌</span><div><h4>Mensaje personalizado</h4><p>Aparece dentro de la app y puede generar una notificación.</p></div></div>
-            <label><span>Destinatario</span><select id="messageRecipient" required></select></label>
+            <label class="recipient-field"><span>Destinatario</span><select id="messageRecipient" required></select><small id="messageRecipientHint" class="field-hint">Cargando personas…</small></label>
             <label><span>Título</span><input id="messageTitle" required maxlength="60" placeholder="Tengo algo que decirte..." /></label>
             <label><span>Mensaje</span><textarea id="messageBody" required maxlength="300" rows="4" placeholder="No olvides que..."></textarea></label>
             <button class="secondary-btn wide" type="submit">Enviar mensaje</button>
