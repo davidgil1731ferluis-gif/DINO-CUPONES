@@ -24,9 +24,12 @@ jobs:
         run: |
           cp js/app.js /tmp/app.mjs
           cp js/firebase-service.js /tmp/firebase-service.mjs
+          cp js/integrations-config.js /tmp/integrations-config.mjs
+          cp worker/src/index.js /tmp/worker.mjs
           node --check /tmp/app.mjs
           node --check /tmp/firebase-service.mjs
-          node --check functions/index.js
+          node --check /tmp/integrations-config.mjs
+          node --check /tmp/worker.mjs
           node --check tests/ui-contract.mjs
           node tests/ui-contract.mjs
       - name: Configure Pages
