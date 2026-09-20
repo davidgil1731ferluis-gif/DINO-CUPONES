@@ -215,6 +215,7 @@ function renderInstallAvailability() {
   $('[data-install-app]').forEach((button) => {
     button.hidden = installed || (!mobile && !deferredInstallPrompt);
   });
+  $('#installAppBtn')?.setAttribute('aria-hidden', String(installed));
 }
 
 function renderInstallInstructions() {
@@ -285,7 +286,7 @@ window.addEventListener('appinstalled', () => {
   toast('DinoCupones instalada correctamente 🦖💜');
 });
 
-$('[data-install-app]').forEach((button) => {
+$$('[data-install-app]').forEach((button) => {
   button.onclick = openInstallDialog;
 });
 $('#closeInstallDialogBtn').onclick = () => $('#installDialog').close();
