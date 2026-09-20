@@ -1,0 +1,26 @@
+name: Apply DinoCupones PNG intro patch
+on:
+  push:
+    paths:
+      - ".patch/dinopatch.tar.gz"
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply prepared patch
+        shell: bash
+        run: |
+          tar -xzf .patch/dinopatch.tar.gz -C .
+          rm -rf .patch
+          rm -f .github/workflows/apply-intro-patch.yml
+      - name: Commit final application files
+        shell: bash
+        run: |
+          git config user.name "DinoCupones Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "Replace intro with animated PNG triceratops experience"
+          git push
