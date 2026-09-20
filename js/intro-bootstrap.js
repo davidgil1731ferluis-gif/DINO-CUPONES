@@ -100,26 +100,61 @@
     revealLetter();
   }
 
-  async function registerAppServiceWorker() {
-    if (!('serviceWorker' in navigator)) return;
+  const APP_BUILD = '20260920-11';
+  let updateReloading = false;
+
+  async function checkForUpdate(forceReload = false) {
+    if (!('serviceWorker' in navigator)) {
+      if (forceReload) window.location.reload();
+      return false;
+    }
 
     const hadController = Boolean(navigator.serviceWorker.controller);
-    let refreshing = false;
 
     if (hadController) {
       navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (refreshing) return;
-        refreshing = true;
+        if (updateReloading) return;
+        updateReloading = true;
         window.location.reload();
       }, { once: true });
     }
 
     try {
-      const registration = await navigator.serviceWorker.register('./sw.js', { scope: './' });
+      const registration = await navigator.serviceWorker.register(
+        './sw.js?v=' + APP_BUILD,
+        { scope: './', updateViaCache: 'none' }
+      );
+
       await registration.update();
+
+      if (registration.waiting) {
+        registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
+
+      if (forceReload) {
+        window.setTimeout(() => {
+          if (updateReloading) return;
+          updateReloading = true;
+          const next = new URL(window.location.href);
+          next.searchParams.set('appbuild', APP_BUILD);
+          window.location.replace(next.toString());
+        }, 900);
+      }
+
+      return true;
     } catch (error) {
       console.warn('No se pudo actualizar la PWA de DinoCupones.', error);
+      if (forceReload) {
+        const next = new URL(window.location.href);
+        next.searchParams.set('appbuild', APP_BUILD);
+        window.location.replace(next.toString());
+      }
+      return false;
     }
+  }
+
+  async function registerAppServiceWorker() {
+    return checkForUpdate(false);
   }
 
   function setup() {
@@ -160,7 +195,9 @@
     skip,
     revealLetter,
     showScreen,
-    cleanup: clearTimers
+    cleanup: clearTimers,
+    checkForUpdate,
+    build: APP_BUILD
   };
 
   if (document.readyState === 'loading') {
