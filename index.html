@@ -179,13 +179,13 @@
         <button id="notificationBtn" class="icon-bubble" type="button" aria-label="Notificaciones">
           <span>♡</span><b id="notificationBadge" hidden>0</b>
         </button>
-        <div class="profile-pill">
+        <button id="accountSettingsBtn" class="profile-pill profile-pill-button" type="button" aria-label="Abrir configuración de mi cuenta">
           <span id="userAvatar">D</span>
-          <div>
+          <span class="profile-pill-copy">
             <strong id="userName">Dino</strong>
             <small id="userRole">Invitado especial</small>
-          </div>
-        </div>
+          </span>
+        </button>
         <button id="logoutBtn" class="ghost-btn small" type="button">Salir</button>
       </div>
     </header>
@@ -303,6 +303,10 @@
             </div>
             <div class="pair-hero-actions">
               <span class="pair-live-badge">Vínculo activo</span>
+              <div class="pair-quick-actions" aria-label="Acciones rápidas">
+                <button class="pair-quick-btn" data-scroll-pair="#pairCouponForm" type="button">🎟️ Crear cupón</button>
+                <button class="pair-quick-btn" data-scroll-pair="#pairMessageForm" type="button">💌 Enviar mensaje</button>
+              </div>
               <button id="unlinkPairBtn" class="pair-unlink-btn" type="button">Desvincular DinoDúo</button>
             </div>
           </article>
@@ -421,6 +425,31 @@
     </div>
   </dialog>
 
+
+
+  <dialog id="accountDialog" class="modal-dialog account-dialog">
+    <div class="modal-card account-card">
+      <button id="closeAccountDialogBtn" class="modal-close" type="button" aria-label="Cerrar">×</button>
+      <span class="eyebrow">Seguridad de la cuenta</span>
+      <h3>Mi cuenta</h3>
+      <p>La sesión de DinoCupones se conserva solo durante la sesión actual del navegador o de la app instalada.</p>
+
+      <div class="account-summary">
+        <span>Correo</span>
+        <strong id="currentAccountEmail">—</strong>
+      </div>
+
+      <button id="sendMyResetBtn" class="secondary-btn wide" type="button">Enviar enlace para cambiar contraseña</button>
+
+      <div class="danger-zone">
+        <span class="eyebrow">Zona de riesgo</span>
+        <strong>Eliminar mi cuenta</strong>
+        <p>Esto cerrará tu DinoDúo activo y eliminará tu acceso. Escribe tu contraseña actual para confirmar.</p>
+        <input id="deleteAccountPassword" type="password" autocomplete="current-password" placeholder="Contraseña actual" />
+        <button id="deleteMyAccountBtn" class="danger-btn wide" type="button">Eliminar definitivamente mi cuenta</button>
+      </div>
+    </div>
+  </dialog>
 
   <dialog id="installDialog" class="modal-dialog install-dialog">
     <div class="install-card">
