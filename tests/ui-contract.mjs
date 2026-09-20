@@ -50,7 +50,7 @@ if (!html.includes('intro-bootstrap.js')) errors.push('Falta cargar intro-bootst
 if (!intro.includes('window.DinoIntro')) errors.push('El bootstrap de la intro no expone DinoIntro.');
 if (!html.includes('id="unlinkPairBtn"')) errors.push('Falta el botón para desvincular DinoDúo.');
 if (!html.includes('id="pairSetupStatus"')) errors.push('Falta confirmación visual al cerrar DinoDúo.');
-if (!intro.includes("navigator.serviceWorker.register('./sw.js'")) errors.push('La PWA instalada no actualiza el service worker desde el arranque.');
+if (!intro.includes('updateViaCache')) errors.push('La PWA no fuerza actualización sin caché del service worker.');
 
 const beforeEnsure = service.split('async function ensureFirebase')[0] || '';
 if (/await import\('https:\/\/www\.gstatic\.com/.test(beforeEnsure)) {
@@ -60,7 +60,7 @@ if (/await import\('https:\/\/www\.gstatic\.com/.test(beforeEnsure)) {
 const required = [
   'skipIntroBtn','openLetterBtn','continueToLoginBtn',
   'loginForm','registerForm','showLoginBtn','showRegisterBtn','demoAccessBtn',
-  'logoutBtn','notificationBtn','openUploadBtn','generatePairCodeBtn','unlinkPairBtn',
+  'logoutBtn','notificationBtn','openUploadBtn','generatePairCodeBtn','unlinkPairBtn','updateAppBtn',
   'pairCouponForm','pairMessageForm','couponForm','messageForm'
 ];
 for (const id of required) {
