@@ -140,9 +140,33 @@ service cloud.firestore {
     }
 
     match /mural/{id} {
-      allow read: if signedIn();
-      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if signedIn()
+      allow read: if signedIn()
+        && (
+          isAdmin()
+          || resource.data.userId == request.auth.uid
+          || (
+            resource.data.pairId is string
+            && isPairMember(resource.data.pairId, request.auth.uid)
+          )
+        );
+
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && (
+          request.resource.data.pairId == null
+          || (
+            request.resource.data.pairId is string
+            && isPairMember(request.resource.data.pairId, request.auth.uid)
+          )
+        );
+
+      allow update: if signedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.pairId == resource.data.pairId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['caption', 'couponId']);
+
+      allow delete: if signedIn()
         && (resource.data.userId == request.auth.uid || isAdmin());
     }
 
