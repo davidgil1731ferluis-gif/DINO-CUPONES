@@ -1,11 +1,56 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    function signedIn(){ return request.auth != null; }
-    function isAdmin(){ return signedIn() && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin'; }
+    function signedIn(){
+      return request.auth != null;
+    }
+
+    function isAdmin(){
+      return signedIn()
+        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function pairExists(pairId){
+      return firestore.exists(/databases/(default)/documents/pairs/$(pairId));
+    }
+
+    function isPairMember(pairId){
+      return signedIn()
+        && pairExists(pairId)
+        && firestore.get(/databases/(default)/documents/pairs/$(pairId)).data.active == true
+        && request.auth.uid in firestore.get(/databases/(default)/documents/pairs/$(pairId)).data.memberUids;
+    }
+
+    match /mural/{scopeId}/{uid}/{fileName} {
+      allow read: if signedIn()
+        && (
+          isAdmin()
+          || (scopeId == uid && request.auth.uid == uid)
+          || isPairMember(scopeId)
+        );
+
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && (
+          scopeId == uid
+          || isPairMember(scopeId)
+        )
+        && request.resource.size < 80 * 1024 * 1024
+        && request.resource.contentType.matches('(image|video)/.*');
+
+      allow delete: if signedIn()
+        && (request.auth.uid == uid || isAdmin());
+
+      allow update: if false;
+    }
+
+    // Compatibilidad temporal con la ruta inicial antes de conectar Firebase.
     match /mural/{uid}/{fileName} {
-      allow read: if signedIn();
-      allow create: if signedIn() && request.auth.uid == uid && request.resource.size < 80 * 1024 * 1024 && request.resource.contentType.matches('(image|video)/.*');
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.size < 80 * 1024 * 1024
+        && request.resource.contentType.matches('(image|video)/.*');
       allow delete: if signedIn() && (request.auth.uid == uid || isAdmin());
       allow update: if false;
     }
