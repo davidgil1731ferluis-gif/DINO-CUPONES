@@ -16,6 +16,7 @@ import {
   deleteCoupon,
   resetCoupon,
   listMural,
+  listAllMural,
   uploadMural,
   listMessages,
   listPairMessages,
@@ -37,11 +38,13 @@ let messages = [];
 let pairMessages = [];
 let sentCoupons = [];
 let adminCoupons = [];
+let adminMural = [];
 let users = [];
 let currentPair = null;
 let partnerUid = null;
 let partnerName = '';
 let filter = 'active';
+let couponView = 'received';
 let localDemoMedia = [];
 const screens = ['#introScreen', '#letterScreen', '#authScreen', '#appScreen'];
 
@@ -368,9 +371,7 @@ async function enterApp(user) {
   if ('serviceWorker' in navigator) {
     try {
       await navigator.serviceWorker.register('./firebase-messaging-sw.js');
-      if (firebaseReady) {
-        setTimeout(() => requestPushPermission(user.uid).catch(() => {}), 1200);
-      }
+      renderNotificationPermissionState();
     } catch (error) {
       console.warn(error);
     }
@@ -386,7 +387,7 @@ async function refreshAll() {
 
   [coupons, mural, messages, sentCoupons, pairMessages] = await Promise.all([
     listCoupons(currentUser.uid),
-    listMural(),
+    listMural(currentUser.uid, currentPair?.id || null),
     listMessages(currentUser.uid),
     currentPair ? listSentCoupons(currentUser.uid) : Promise.resolve([]),
     currentPair ? listPairMessages(currentPair.id) : Promise.resolve([])
@@ -402,7 +403,7 @@ async function refreshAll() {
   renderPairWorkspace();
 
   if (profile.role === 'admin') {
-    [users, adminCoupons] = await Promise.all([listUsers(), listAllCoupons()]);
+    [users, adminCoupons, adminMural] = await Promise.all([listUsers(), listAllCoupons(), listAllMural()]);
     renderAdminUsers();
     renderRecipients();
     renderAdminMedia();
@@ -421,7 +422,7 @@ function renderAdminSummary() {
   if (profile?.role !== 'admin') return;
   $('#adminTotalCoupons').textContent = adminCoupons.length;
   $('#adminUnreadMessages').textContent = messages.filter(m=>!m.read).length;
-  $('#adminTotalMemories').textContent = mural.length;
+  $('#adminTotalMemories').textContent = adminMural.length;
 }
 
 function renderHero() {
