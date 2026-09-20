@@ -1,2 +1,8 @@
-export const firebaseConfig={apiKey:"TU_API_KEY",authDomain:"TU_PROJECT_ID.firebaseapp.com",projectId:"TU_PROJECT_ID",storageBucket:"TU_PROJECT_ID.firebasestorage.app",messagingSenderId:"TU_MESSAGING_SENDER_ID",appId:"TU_APP_ID"};
-export const vapidKey="TU_VAPID_KEY";
+export const firebaseConfig = {
+  apiKey: "AIzaSyACfdS4i5pL7wWYkMplX6bF3j3T1qphBQ8",
+  authDomain: "dinocupones.firebaseapp.com",
+  projectId: "dinocupones",
+  storageBucket: "dinocupones.firebasestorage.app",
+  messagingSenderId: "610727439740",
+  appId: "1:610727439740:web:4214e7e99c7e10e80f08f9"
+};
