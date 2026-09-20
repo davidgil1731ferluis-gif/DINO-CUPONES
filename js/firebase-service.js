@@ -39,6 +39,42 @@ const demoMessages = [
   {id:'msg-1',pairId:'pair-demo',senderUid:'demo-love',senderName:'Mi persona favorita',targetUid:'demo-user',title:'Para cuando abras esto 💜',body:'Hay una aventura nueva esperando por nosotros.',createdAt:new Date(demoNow-3600000),read:false}
 ];
 const demoInvites = new Map();
+const DEMO_ACCOUNTS_KEY = 'dinocupones_demo_accounts_v1';
+
+function readDemoAccounts() {
+  try {
+    return JSON.parse(localStorage.getItem(DEMO_ACCOUNTS_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function writeDemoAccounts(accounts) {
+  try {
+    localStorage.setItem(DEMO_ACCOUNTS_KEY, JSON.stringify(accounts));
+  } catch {
+    // El modo demo sigue funcionando durante la sesión aunque el navegador bloquee storage.
+  }
+}
+
+async function hashDemoPassword(password) {
+  if (globalThis.crypto?.subtle) {
+    const bytes = new TextEncoder().encode(password);
+    const digest = await crypto.subtle.digest('SHA-256', bytes);
+    return Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('');
+  }
+  return btoa(unescape(encodeURIComponent(password)));
+}
+
+function demoAccountByUid(uid) {
+  return readDemoAccounts().find(account => account.uid === uid) || null;
+}
+
+function authError(code, message) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
+}
 
 export const firebaseReady = configured;
 
@@ -67,9 +103,74 @@ export function onAuth(callback){
   return authMod.onAuthStateChanged(auth,callback);
 }
 export async function login(email,password){
-  if(!configured) return {user:{uid:'demo-user',email}};
+  if(!configured) {
+    const normalizedEmail=String(email||'').trim().toLowerCase();
+
+    if(normalizedEmail==='demo@dinocupones.app'){
+      return {user:{uid:'demo-user',email:normalizedEmail}};
+    }
+
+    const account=readDemoAccounts().find(item=>item.email===normalizedEmail);
+    if(!account) throw authError('auth/invalid-credential','Usuario o contraseña incorrectos.');
+
+    const passwordHash=await hashDemoPassword(password);
+    if(passwordHash!==account.passwordHash){
+      throw authError('auth/invalid-credential','Usuario o contraseña incorrectos.');
+    }
+    return {user:{uid:account.uid,email:account.email}};
+  }
   return authMod.signInWithEmailAndPassword(auth,email,password);
 }
+
+export async function registerAccount({displayName,email,password}){
+  const cleanName=String(displayName||'').trim();
+  const cleanEmail=String(email||'').trim().toLowerCase();
+
+  if(cleanName.length<2) throw authError('auth/invalid-display-name','Escribe un nombre válido.');
+  if(!cleanEmail.includes('@')) throw authError('auth/invalid-email','Correo inválido.');
+  if(String(password||'').length<6) throw authError('auth/weak-password','La contraseña debe tener al menos 6 caracteres.');
+
+  if(!configured){
+    if(cleanEmail==='demo@dinocupones.app' || cleanEmail==='amor@dinocupones.app'){
+      throw authError('auth/email-already-in-use','Ese correo ya está registrado.');
+    }
+
+    const accounts=readDemoAccounts();
+    if(accounts.some(item=>item.email===cleanEmail)){
+      throw authError('auth/email-already-in-use','Ese correo ya está registrado.');
+    }
+
+    const uid='demo-local-'+(crypto.randomUUID?.() || Date.now().toString(36)+Math.random().toString(36).slice(2));
+    const account={
+      uid,
+      email:cleanEmail,
+      displayName:cleanName,
+      role:'user',
+      passwordHash:await hashDemoPassword(password),
+      createdAt:new Date().toISOString()
+    };
+    accounts.push(account);
+    writeDemoAccounts(accounts);
+    return {user:{uid,email:cleanEmail}};
+  }
+
+  const credential=await authMod.createUserWithEmailAndPassword(auth,cleanEmail,password);
+  try{
+    await authMod.updateProfile(credential.user,{displayName:cleanName});
+    await fsMod.setDoc(fsMod.doc(db,'users',credential.user.uid),{
+      displayName:cleanName,
+      email:cleanEmail,
+      role:'user',
+      active:true,
+      createdAt:fsMod.serverTimestamp()
+    });
+  }catch(error){
+    try{ await authMod.deleteUser(credential.user); }catch{}
+    throw error;
+  }
+  return credential;
+}
+
 export async function logout(){if(configured) return authMod.signOut(auth);}
 export async function resetPassword(email){
   if(!configured) return true;
@@ -79,7 +180,10 @@ export async function resetPassword(email){
 export async function getProfile(uid){
   if(!configured) {
     if (uid === 'demo-love') return {uid,displayName:'Mi persona favorita',email:'amor@dinocupones.app',role:'user'};
-    return {uid,displayName:'Dino',email:'demo@dinocupones.app',role:'admin'};
+    if (uid === 'demo-user') return {uid,displayName:'Dino',email:'demo@dinocupones.app',role:'admin'};
+    const account=demoAccountByUid(uid);
+    if(account) return {uid:account.uid,displayName:account.displayName,email:account.email,role:'user'};
+    return {uid,displayName:'Dino',email:'',role:'user'};
   }
   const snap=await fsMod.getDoc(fsMod.doc(db,'users',uid));
   return snap.exists()?{uid,...snap.data()}:{uid,displayName:'Dino',role:'user'};
@@ -468,7 +572,8 @@ export async function markMessageRead(id){
 export async function listUsers(){
   if(!configured) return [
     {uid:'demo-user',displayName:'Dino',email:'demo@dinocupones.app',role:'admin'},
-    {uid:'demo-love',displayName:'Mi persona favorita',email:'amor@dinocupones.app',role:'user'}
+    {uid:'demo-love',displayName:'Mi persona favorita',email:'amor@dinocupones.app',role:'user'},
+    ...readDemoAccounts().map(({passwordHash,...account})=>account)
   ];
   const snap=await fsMod.getDocs(fsMod.query(fsMod.collection(db,'users'),fsMod.orderBy('displayName')));
   return snap.docs.map(d=>({uid:d.id,...d.data()}));
