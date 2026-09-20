@@ -17,22 +17,37 @@
   <div id="toast" class="toast" aria-live="polite"></div>
 
   <section id="introScreen" class="screen intro-screen is-visible" aria-label="Animación de bienvenida">
-    <div class="intro-backdrop">
-      <div class="sky-glow glow-left"></div>
-      <div class="sky-glow glow-right"></div>
-      <div class="heart-palm palm-left"></div>
-      <div class="heart-palm palm-right"></div>
-      <div class="jungle-hills"></div>
-      <div class="jungle-flowers"></div>
+    <img
+      class="intro-bg-image"
+      src="./assets/romantic-jungle-bg.webp"
+      alt=""
+      aria-hidden="true"
+      fetchpriority="high"
+      decoding="async"
+    />
+    <div class="intro-color-wash" aria-hidden="true"></div>
+    <div class="intro-vignette" aria-hidden="true"></div>
+    <div class="intro-sparkles" aria-hidden="true">
+      <i></i><i></i><i></i><i></i><i></i><i></i>
     </div>
-    <div id="dinoStage" class="dino-stage" aria-hidden="true"></div>
+
     <div class="intro-copy floating-card">
       <span class="eyebrow">Una entrega especial viene en camino</span>
-      <h1>Hay una carta hecha para ti.</h1>
-      <p>Un triceratops romántico atraviesa una selva encantada para dejarte algo más valioso que cualquier regalo: tiempo, planes y recuerdos.</p>
+      <h1>Una pequeña aventura llegó hasta ti.</h1>
+      <p>Espera un momento. Nuestro triceratops trae una carta que solo aparecerá cuando termine de entregarla.</p>
     </div>
+
     <button id="skipIntroBtn" class="ghost-btn intro-skip" type="button">Saltar animación</button>
+
+    <div id="dinoStage" class="png-dino-stage" aria-hidden="true">
+      <div class="dino-ground-shadow"></div>
+      <img id="dinoRun" class="png-dino png-dino-run" src="./assets/triceratops-run.png" alt="" decoding="async" />
+      <img id="dinoDeliver" class="png-dino png-dino-deliver" src="./assets/triceratops-deliver.png" alt="" decoding="async" />
+      <img id="dinoExit" class="png-dino png-dino-exit" src="./assets/triceratops-exit.png" alt="" decoding="async" />
+    </div>
+
     <div id="letterDelivery" class="letter-delivery" hidden>
+      <span class="delivery-kicker">Entrega completada 💜</span>
       <button id="openLetterBtn" class="letter-card" type="button" aria-label="Abrir carta">
         <span class="letter-seal">❤</span>
         <span class="letter-front">Para ti</span>
