@@ -1565,3 +1565,36 @@ input:focus,textarea:focus,select:focus{border-color:#ba96ff;box-shadow:0 0 0 4p
 @media(prefers-reduced-motion:reduce){
   .mural-card,.mural-media,.coupon-view-btn{transition:none!important}
 }
+
+
+/* DinoDuo unlink */
+.pair-hero-actions{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:9px;
+}
+.pair-unlink-btn{
+  border:1px solid #ead1dc;
+  border-radius:999px;
+  padding:9px 12px;
+  background:rgba(255,250,252,.82);
+  color:#9b4f6f;
+  font-size:.72rem;
+  font-weight:900;
+  cursor:pointer;
+  transition:transform .2s ease,background .2s ease,border-color .2s ease;
+}
+.pair-unlink-btn:hover{
+  transform:translateY(-1px);
+  background:#fff1f6;
+  border-color:#e7b9cc;
+}
+.pair-unlink-btn:disabled{opacity:.6;cursor:wait;transform:none}
+
+@media(max-width:760px){
+  .pair-hero-actions{
+    width:100%;
+    align-items:center;
+  }
+}
