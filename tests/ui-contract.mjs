@@ -1,0 +1,47 @@
+import fs from 'node:fs';
+
+const html = fs.readFileSync('index.html', 'utf8');
+const app = fs.readFileSync('js/app.js', 'utf8');
+const service = fs.readFileSync('js/firebase-service.js', 'utf8');
+
+const errors = [];
+const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map(match => match[1]);
+const duplicates = ids.filter((id, index) => ids.indexOf(id) !== index);
+if (duplicates.length) errors.push('IDs duplicados: ' + [...new Set(duplicates)].join(', '));
+
+const interactiveIds = [...html.matchAll(/<(button|form)[^>]*\sid="([^"]+)"/g)].map(match => match[2]);
+for (const id of interactiveIds) {
+  if (!app.includes('#' + id)) errors.push('Control sin referencia JS: #' + id);
+}
+
+for (const match of html.matchAll(/data-tab="([^"]+)"/g)) {
+  const panelId = match[1] + 'Tab';
+  if (!html.includes('id="' + panelId + '"')) errors.push('Pestaña sin panel: ' + match[1]);
+}
+
+const singleSelectorForEach = app
+  .split('\n')
+  .filter(line => /^\s*\$\([^\n]+\)\.forEach/.test(line));
+if (singleSelectorForEach.length) {
+  errors.push('Se usó $() con .forEach; debe usarse $$(): ' + singleSelectorForEach.join(' | '));
+}
+
+if (/\${3,}\(/.test(app)) errors.push('Selector helper inválido: hay $$$ o más.');
+if (!app.includes('registerAccount')) errors.push('El flujo de registro no está conectado en app.js.');
+if (!service.includes('export async function registerAccount')) errors.push('Falta registerAccount en firebase-service.js.');
+
+const required = [
+  'loginForm','registerForm','showLoginBtn','showRegisterBtn','demoAccessBtn',
+  'logoutBtn','notificationBtn','openUploadBtn','generatePairCodeBtn','unlinkPairBtn',
+  'pairCouponForm','pairMessageForm','couponForm','messageForm'
+];
+for (const id of required) {
+  if (!ids.includes(id)) errors.push('Falta control obligatorio: #' + id);
+}
+
+if (errors.length) {
+  console.error('\nUI contract FAILED\n- ' + errors.join('\n- '));
+  process.exit(1);
+}
+
+console.log('UI contract OK:', interactiveIds.length, 'controles revisados y', ids.length, 'IDs únicos.');
