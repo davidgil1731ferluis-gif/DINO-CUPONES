@@ -105,7 +105,7 @@ function celebrateFrom(element) {
 
 function observeReveals() {
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) {
-    $$$('.reveal-item').forEach(el=>el.classList.add('is-revealed'));
+    $('.reveal-item').forEach(el=>el.classList.add('is-revealed'));
     return;
   }
   const observer=new IntersectionObserver((entries,obs)=>{
@@ -116,7 +116,7 @@ function observeReveals() {
       }
     });
   },{rootMargin:'80px 0px',threshold:.08});
-  $$$('.reveal-item:not(.is-revealed)').forEach(el=>observer.observe(el));
+  $('.reveal-item:not(.is-revealed)').forEach(el=>observer.observe(el));
 }
 
 function showScreen(id) {
@@ -738,7 +738,7 @@ $('#unlinkPairBtn').onclick = async () => {
     pairMessages = [];
     sentCoupons = [];
     couponView = 'received';
-    $$$$('[data-coupon-view]').forEach((item) => {
+    $('[data-coupon-view]').forEach((item) => {
       item.classList.toggle('is-active', item.dataset.couponView === 'received');
     });
     await refreshAll();
@@ -781,27 +781,27 @@ $('#pairMessageForm').onsubmit = async (event) => {
   }
 };
 
-$$$$('.tab-btn').forEach((button) => {
+$('.tab-btn').forEach((button) => {
   button.onclick = () => {
     const tab = button.dataset.tab;
-    $$$('.tab-btn').forEach((item) => item.classList.toggle('is-active', item === button));
-    $$$('.tab-panel').forEach((panel) => panel.classList.remove('is-active'));
+    $('.tab-btn').forEach((item) => item.classList.toggle('is-active', item === button));
+    $('.tab-panel').forEach((panel) => panel.classList.remove('is-active'));
     $(`#${tab}Tab`).classList.add('is-active');
   };
 });
 
-$$$$('[data-coupon-view]').forEach((button) => {
+$('[data-coupon-view]').forEach((button) => {
   button.onclick = () => {
     couponView = button.dataset.couponView;
-    $$$$('[data-coupon-view]').forEach((item) => item.classList.toggle('is-active', item === button));
+    $('[data-coupon-view]').forEach((item) => item.classList.toggle('is-active', item === button));
     renderCoupons();
   };
 });
 
-$$$$('.chip').forEach((button) => {
+$('.chip').forEach((button) => {
   button.onclick = () => {
     filter = button.dataset.filter;
-    $$$('.chip').forEach((item) => item.classList.toggle('is-active', item === button));
+    $('.chip').forEach((item) => item.classList.toggle('is-active', item === button));
     renderCoupons();
   };
 });
@@ -889,7 +889,7 @@ function renderCoupons() {
     : `<div class="empty-state"><strong>${couponView === 'sent' ? 'Todavía no has enviado cupones.' : 'No hay cupones aquí.'}</strong>${couponView === 'sent' ? 'Cuando regales uno podrás seguir su estado desde aquí.' : 'Cuando aparezca uno, este espacio dejará de estar tan tranquilo. 🦖'}</div>`;
 
   observeReveals();
-  $$$('[data-open-coupon]').forEach((button) => {
+  $('[data-open-coupon]').forEach((button) => {
     button.onclick = () => openCoupon(button.dataset.openCoupon, button.dataset.couponSource || 'received');
   });
 }
@@ -1043,7 +1043,7 @@ function renderMural() {
     : `<div class="empty-state"><strong>El mural todavía está vacío.</strong>${currentPair ? 'La primera foto de ustedes puede empezar esta historia.' : 'Puedes guardar recuerdos privados mientras conectas tu DinoDúo.'}</div>`;
 
   observeReveals();
-  $$$('[data-mural-id]').forEach((card) => {
+  $('[data-mural-id]').forEach((card) => {
     const open = () => openMuralViewer(card.dataset.muralId);
     card.onclick = (event) => {
       if (event.target.closest('button,a')) return;
@@ -1144,7 +1144,7 @@ function renderMessages() {
       </button>`).join('')
     : `<div class="empty-state"><strong>Sin mensajes.</strong>Cuando llegue uno aparecerá aquí.</div>`;
 
-  $$$('[data-message-id]').forEach((button) => {
+  $('[data-message-id]').forEach((button) => {
     button.onclick = async () => {
       await markMessageRead(button.dataset.messageId);
       const message = messages.find((item) => item.id === button.dataset.messageId);
@@ -1238,7 +1238,7 @@ function renderAdminUsers() {
       <button class="mini-btn" data-reset-email="${escapeHtml(user.email || '')}" type="button">Restablecer</button>
     </div>`).join('');
 
-  $$$('[data-reset-email]').forEach((button) => {
+  $('[data-reset-email]').forEach((button) => {
     button.onclick = async () => {
       if (!button.dataset.resetEmail) return toast('Este usuario no tiene correo registrado.');
       try {
@@ -1282,7 +1282,7 @@ function renderAdminCoupons() {
       </div>`).join('')
     : '<div class="empty-state"><strong>Sin cupones creados.</strong></div>';
 
-  $$$('[data-reset-coupon]').forEach((button) => {
+  $('[data-reset-coupon]').forEach((button) => {
     button.onclick = async () => {
       try {
         await resetCoupon(button.dataset.resetCoupon);
@@ -1296,7 +1296,7 @@ function renderAdminCoupons() {
     };
   });
 
-  $$$('[data-delete-coupon]').forEach((button) => {
+  $('[data-delete-coupon]').forEach((button) => {
     button.onclick = async () => {
       if (!safeConfirm('¿Deseas eliminar este cupón?')) return;
       try {
