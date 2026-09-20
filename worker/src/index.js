@@ -280,10 +280,14 @@ async function sendOneSignalNotification(request, auth, env) {
     if (!(await isAdmin(auth.uid, auth.token, env))) throw new Error('ADMIN_REQUIRED');
     targeting = { included_segments: ['Subscribed Users'] };
   } else {
-    if (pairId) {
-      await requireActivePair(pairId, auth.uid, targetUid, auth.token, env);
-    } else if (!(await isAdmin(auth.uid, auth.token, env))) {
-      throw new Error('PAIR_REQUIRED');
+    const selfTest = targetUid === auth.uid;
+
+    if (!selfTest) {
+      if (pairId) {
+        await requireActivePair(pairId, auth.uid, targetUid, auth.token, env);
+      } else if (!(await isAdmin(auth.uid, auth.token, env))) {
+        throw new Error('PAIR_REQUIRED');
+      }
     }
 
     targeting = {
@@ -313,7 +317,20 @@ async function sendOneSignalNotification(request, auth, env) {
     error.details = result;
     throw error;
   }
-  return result;
+
+  return {
+    ok: true,
+    id: result.id || null,
+    recipients: Number(
+      result.recipients
+      ?? result.recipient_count
+      ?? result.successful
+      ?? 0
+    ),
+    externalIdErrors: result.external_id_errors || null,
+    errors: result.errors || null,
+    raw: result
+  };
 }
 
 function assertOrigin(request, env) {
