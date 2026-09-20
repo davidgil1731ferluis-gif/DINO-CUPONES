@@ -167,8 +167,15 @@
       </nav>
 
       <section id="couponsTab" class="tab-panel is-active">
-        <div class="section-heading">
-          <div><span class="eyebrow">Tus aventuras</span><h3>Cupones</h3></div>
+        <div class="section-heading coupon-heading">
+          <div>
+            <span class="eyebrow">Tus aventuras</span>
+            <h3>Cupones</h3>
+            <div class="coupon-view-switch" aria-label="Vista de cupones">
+              <button class="coupon-view-btn is-active" data-coupon-view="received" type="button">Recibidos</button>
+              <button class="coupon-view-btn" data-coupon-view="sent" type="button">Enviados</button>
+            </div>
+          </div>
           <div class="filter-chips" id="couponFilters">
             <button class="chip is-active" data-filter="active" type="button">Activos</button>
             <button class="chip" data-filter="pending" type="button">Por completar</button>
@@ -181,7 +188,11 @@
 
       <section id="muralTab" class="tab-panel">
         <div class="section-heading mural-heading">
-          <div><span class="eyebrow">Nuestro archivo favorito</span><h3>DinoMural</h3></div>
+          <div>
+            <span class="eyebrow">Nuestro archivo favorito</span>
+            <h3>DinoMural</h3>
+            <p id="muralScopeLabel" class="mural-scope-label">Tus recuerdos privados.</p>
+          </div>
           <button id="openUploadBtn" class="primary-btn compact" type="button">+ Subir recuerdo</button>
         </div>
         <div id="muralGrid" class="mural-grid"></div>
@@ -324,6 +335,7 @@
       <span id="couponDialogStatus" class="status-pill">Activo</span>
       <h3 id="couponDialogTitle">Cupón</h3>
       <p id="couponDialogActivity"></p>
+      <div id="couponDialogRelation" class="coupon-dialog-relation"></div>
       <div class="modal-meta"><span>Vence</span><strong id="couponDialogExpiry"></strong></div>
       <div id="couponDialogActions" class="modal-actions"></div>
     </form>
@@ -343,8 +355,24 @@
     </form>
   </dialog>
 
+  <dialog id="muralViewerDialog" class="modal-dialog mural-viewer-dialog">
+    <div class="mural-viewer-card">
+      <button id="closeMuralViewerBtn" class="modal-close" type="button" aria-label="Cerrar">×</button>
+      <div id="muralViewerMedia" class="mural-viewer-media"></div>
+      <div class="mural-viewer-copy">
+        <span id="muralViewerOwner" class="eyebrow">Recuerdo compartido</span>
+        <h3 id="muralViewerCaption">Nuestro recuerdo</h3>
+        <p id="muralViewerMeta"></p>
+      </div>
+    </div>
+  </dialog>
+
   <aside id="notificationDrawer" class="notification-drawer" aria-hidden="true">
     <div class="drawer-head"><div><span class="eyebrow">Para ti</span><h3>Mensajes</h3></div><button id="closeNotificationsBtn" class="icon-btn" type="button">×</button></div>
+    <div class="notification-permission-card">
+      <div><strong>Notificaciones en tu celular</strong><small id="notificationPermissionText">Actívalas para recibir nuevos cupones y mensajes.</small></div>
+      <button id="enableNotificationsBtn" class="mini-btn" type="button">Activar</button>
+    </div>
     <div id="notificationList" class="notification-list"></div>
   </aside>
   <div id="drawerBackdrop" class="drawer-backdrop"></div>
