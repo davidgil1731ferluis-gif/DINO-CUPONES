@@ -2078,3 +2078,93 @@ button:focus-visible,
     object-position:center center;
   }
 }
+
+
+/* =========================================================
+   DINODÚO CONFIRMATION + RECIPIENT SELECTS
+   ========================================================= */
+.pair-success-banner{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  align-items:center;
+  gap:12px;
+  margin:0 0 16px;
+  padding:14px 16px;
+  border:1px solid #d8c4f1;
+  border-radius:20px;
+  background:
+    radial-gradient(circle at 0% 0%,rgba(255,187,222,.34),transparent 32%),
+    linear-gradient(135deg,#fffaff,#f6efff);
+  box-shadow:0 16px 34px rgba(91,55,102,.11);
+  color:#54315f;
+}
+.pair-success-banner[hidden]{display:none!important}
+.pair-success-banner.is-popping{animation:pairSuccessPop .55s cubic-bezier(.2,.9,.25,1.15)}
+.pair-success-icon{
+  width:42px;
+  height:42px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  color:#fff;
+  font-size:1.15rem;
+  font-weight:900;
+  background:linear-gradient(135deg,#9d68ef,#ea75b4);
+  box-shadow:0 10px 22px rgba(130,77,166,.2);
+}
+.pair-success-banner strong{display:block;font-size:.95rem}
+.pair-success-banner p{margin:3px 0 0;color:#75627a;font-size:.8rem;line-height:1.45}
+.pair-success-banner button{
+  width:34px;
+  height:34px;
+  border:0;
+  border-radius:11px;
+  background:rgba(255,255,255,.72);
+  color:#7e5b87;
+  font-size:1.2rem;
+  cursor:pointer;
+}
+@keyframes pairSuccessPop{
+  from{opacity:0;transform:translateY(-8px) scale(.985)}
+  to{opacity:1;transform:none}
+}
+
+.recipient-field select{
+  min-height:52px;
+  appearance:auto;
+  -webkit-appearance:menulist;
+  background:#fffdfd;
+  color:#442c4c!important;
+  -webkit-text-fill-color:#442c4c;
+}
+.recipient-field select:disabled{
+  opacity:.72;
+  cursor:not-allowed;
+  background:#f7f1f7;
+}
+.recipient-field select option{
+  color:#392441!important;
+  background:#fff!important;
+  font-weight:600;
+}
+.field-hint{
+  display:block;
+  margin-top:2px;
+  color:#8b778e;
+  font-size:.72rem;
+  line-height:1.45;
+  font-weight:600;
+}
+
+@media(max-width:760px){
+  .pair-success-banner{
+    grid-template-columns:auto minmax(0,1fr);
+    padding:13px 14px;
+  }
+  .pair-success-banner button{
+    position:absolute;
+    right:10px;
+    top:10px;
+  }
+  .pair-success-banner{position:relative;padding-right:48px}
+}
