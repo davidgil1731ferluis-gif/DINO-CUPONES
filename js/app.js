@@ -31,7 +31,7 @@ import {
   identifyPushUser,
   clearPushUser,
   onForegroundMessage
-} from './firebase-service.js';
+} from './firebase-service.js?v=20260920-4';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -440,9 +440,13 @@ function setupPngIntro() {
   ]).then(() => introLater(180, startPngIntro));
 }
 
-setupPngIntro();
+if (!window.DinoIntro) setupPngIntro();
 
 $('#skipIntroBtn').onclick = () => {
+  if (window.DinoIntro) {
+    window.DinoIntro.skip();
+    return;
+  }
   clearIntroTimers();
   introStarted = true;
   const stage = $('#dinoStage');
@@ -454,8 +458,16 @@ $('#skipIntroBtn').onclick = () => {
   });
   revealIntroLetter();
 };
-$('#openLetterBtn').onclick = () => { playChime('soft'); showScreen('#letterScreen'); };
-$('#continueToLoginBtn').onclick = () => { playChime('soft'); showScreen('#authScreen'); };
+$('#openLetterBtn').onclick = () => {
+  playChime('soft');
+  if (window.DinoIntro) window.DinoIntro.showScreen('#letterScreen');
+  else showScreen('#letterScreen');
+};
+$('#continueToLoginBtn').onclick = () => {
+  playChime('soft');
+  if (window.DinoIntro) window.DinoIntro.showScreen('#authScreen');
+  else showScreen('#authScreen');
+};
 $('#soundToggleBtn').onclick = () => {
   soundEnabled = !soundEnabled;
   $('#soundToggleBtn').setAttribute('aria-pressed', String(soundEnabled));
