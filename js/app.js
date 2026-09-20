@@ -625,7 +625,15 @@ $('.tab-btn').forEach((button) => {
   };
 });
 
-$$('.chip').forEach((button) => {
+$('[data-coupon-view]').forEach((button) => {
+  button.onclick = () => {
+    couponView = button.dataset.couponView;
+    $('[data-coupon-view]').forEach((item) => item.classList.toggle('is-active', item === button));
+    renderCoupons();
+  };
+});
+
+$('.chip').forEach((button) => {
   button.onclick = () => {
     filter = button.dataset.filter;
     $$('.chip').forEach((item) => item.classList.toggle('is-active', item === button));
