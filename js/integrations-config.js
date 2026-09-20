@@ -1,6 +1,6 @@
 export const integrationsConfig = {
   // URL pública del Cloudflare Worker, sin barra final.
-  apiBaseUrl: 'TU_CLOUDFLARE_WORKER_URL',
+  apiBaseUrl: 'https://dinocupones-api.davidgil1731ferluis.workers.dev',
 
   // Datos públicos de Cloudinary.
   cloudinary: {
