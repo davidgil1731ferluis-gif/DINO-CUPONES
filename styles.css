@@ -1809,3 +1809,173 @@ button:focus-visible,
   .install-card h3{font-size:1.65rem}
   .install-app-icon{width:78px;height:78px;border-radius:23px}
 }
+
+
+/* =========================================================
+   ACCOUNT SECURITY + MOBILE PAIR ACTIONS + MURAL DELETE
+   ========================================================= */
+.profile-pill-button{
+  appearance:none;
+  font:inherit;
+  color:inherit;
+  cursor:pointer;
+  text-align:left;
+}
+.profile-pill-button:hover{
+  background:rgba(255,255,255,.95);
+  border-color:#dec8e5;
+}
+.profile-pill-copy{display:block}
+.profile-pill-copy strong,.profile-pill-copy small{display:block}
+
+.pair-quick-actions{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  gap:7px;
+}
+.pair-quick-btn{
+  border:1px solid #dfcce6;
+  border-radius:999px;
+  padding:9px 12px;
+  background:linear-gradient(145deg,#fff,#faf2ff);
+  color:#684472;
+  font-size:.72rem;
+  font-weight:900;
+  cursor:pointer;
+  box-shadow:0 7px 18px rgba(91,55,102,.07);
+}
+.pair-quick-btn:hover{transform:translateY(-1px);background:#fff}
+#pairCouponForm,#pairMessageForm{
+  scroll-margin-top:100px;
+}
+.pair-focus-card{
+  animation:pairFocusPulse .9s ease;
+}
+@keyframes pairFocusPulse{
+  0%,100%{box-shadow:var(--shadow-soft)}
+  45%{box-shadow:0 0 0 5px rgba(139,91,212,.14),0 20px 45px rgba(105,65,122,.16)}
+}
+
+.mural-card{position:relative}
+.mural-delete-btn{
+  position:absolute;
+  z-index:8;
+  top:13px;
+  right:13px;
+  width:38px;
+  height:38px;
+  display:grid;
+  place-items:center;
+  border:1px solid rgba(225,199,210,.9);
+  border-radius:13px;
+  background:rgba(255,250,252,.94);
+  color:#a24f72;
+  cursor:pointer;
+  box-shadow:0 8px 20px rgba(79,45,93,.12);
+  transition:.2s ease;
+}
+.mural-delete-btn:hover{
+  transform:translateY(-1px) scale(1.03);
+  background:#fff0f5;
+  border-color:#e6b6ca;
+}
+.mural-delete-btn:disabled{opacity:.6;cursor:wait;transform:none}
+
+.account-dialog{width:min(520px,94vw);max-width:none;padding:0;border:0;background:transparent}
+.account-dialog::backdrop{background:rgba(38,23,43,.56);backdrop-filter:blur(7px)}
+.account-card{display:grid;gap:15px}
+.account-card>p{margin:0;color:#756579}
+.account-summary{
+  display:grid;
+  gap:4px;
+  padding:14px 16px;
+  border:1px solid #eadbea;
+  border-radius:17px;
+  background:#fffafd;
+}
+.account-summary span{font-size:.68rem;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#98839a}
+.account-summary strong{color:#55345f;overflow-wrap:anywhere}
+.danger-zone{
+  display:grid;
+  gap:10px;
+  margin-top:4px;
+  padding:17px;
+  border:1px solid #efceda;
+  border-radius:20px;
+  background:linear-gradient(145deg,#fff9fb,#fff0f4);
+}
+.danger-zone>strong{color:#8e3f61;font-size:1rem}
+.danger-zone>p{margin:0;color:#8a6876;font-size:.78rem;line-height:1.5}
+.danger-zone input{
+  width:100%;
+  border:1px solid #dfc9d2;
+  border-radius:14px;
+  padding:12px 13px;
+  background:#fff;
+  color:#513642;
+  font:inherit;
+}
+.danger-btn{
+  border:1px solid #d98ba8;
+  border-radius:15px;
+  min-height:44px;
+  padding:11px 14px;
+  background:linear-gradient(135deg,#b6537b,#db6f98);
+  color:#fff;
+  font:inherit;
+  font-weight:900;
+  cursor:pointer;
+}
+.danger-btn:hover{filter:brightness(1.03)}
+.danger-btn:disabled{opacity:.6;cursor:wait}
+.danger-mini{color:#a04c6d;border-color:#e4c5d1;background:#fff7fa}
+
+@media(max-width:760px){
+  .profile-pill-button{
+    padding:6px;
+    border-radius:15px;
+  }
+  .profile-pill-copy{display:none}
+  .pair-hero-actions{
+    width:100%;
+    align-items:stretch;
+  }
+  .pair-quick-actions{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    width:100%;
+  }
+  .pair-quick-btn{
+    min-height:46px;
+    font-size:.78rem;
+    padding:10px 8px;
+  }
+  .pair-unlink-btn{align-self:center}
+  .pair-workspace{
+    display:grid!important;
+    width:100%;
+    grid-template-columns:minmax(0,1fr)!important;
+    gap:14px;
+  }
+  .pair-workspace .pair-card{
+    display:grid;
+    min-height:0;
+    width:100%;
+  }
+  #pairCouponForm,#pairMessageForm{
+    visibility:visible!important;
+    opacity:1!important;
+  }
+  .mural-delete-btn{
+    top:11px;
+    right:11px;
+    width:36px;
+    height:36px;
+  }
+}
+
+@media(max-width:430px){
+  .pair-quick-actions{grid-template-columns:1fr}
+  .account-card{padding:22px 16px}
+}
