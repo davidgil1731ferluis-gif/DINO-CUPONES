@@ -151,6 +151,9 @@ export async function acceptPairInvite({uid,displayName,code}) {
   const existingPair = await getPairForUser(uid);
   if (existingPair) throw new Error('Ya tienes un vínculo activo.');
 
+  const inviterPair = await getPairForUser(invite.fromUid);
+  if (inviterPair) throw new Error('La otra persona ya tiene un DinoDúo activo.');
+
   const pairRef = fsMod.doc(fsMod.collection(db,'pairs'));
   const pairId = pairRef.id;
   const batch = fsMod.writeBatch(db);
