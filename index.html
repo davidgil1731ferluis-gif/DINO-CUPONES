@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#13091f" />
+  <meta name="description" content="DinoCupones: cupones, recuerdos y mensajes para compartir." />
+  <title>DinoCupones</title>
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" href="./assets/dino-heart.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div id="toast" class="toast" aria-live="polite"></div>
+
+  <section id="introScreen" class="screen intro-screen is-visible" aria-label="Animación de bienvenida">
+    <div id="dinoStage" class="dino-stage" aria-hidden="true"></div>
+    <div class="intro-copy">
+      <span class="eyebrow">Una entrega especial está en camino</span>
+      <h1>Hay una carta para ti.</h1>
+      <p>Un pequeño dinosaurio viene corriendo con algo que vale más que cualquier cupón.</p>
+    </div>
+    <button id="skipIntroBtn" class="ghost-btn intro-skip" type="button">Saltar animación</button>
+    <div id="letterDelivery" class="letter-delivery" hidden>
+      <button id="openLetterBtn" class="letter-card" type="button" aria-label="Abrir carta">
+        <span class="letter-seal">❤</span>
+        <span class="letter-front">Para ti</span>
+      </button>
+      <p>Toca la carta para abrirla</p>
+    </div>
+  </section>
+
+  <section id="letterScreen" class="screen letter-screen" aria-label="Carta de bienvenida">
+    <div class="letter-shell">
+      <div class="paper-glow"></div>
+      <article class="paper-letter">
+        <span class="letter-kicker">DinoCupones</span>
+        <h2>Los mejores planes no siempre se compran.</h2>
+        <p>Algunos se guardan, se canjean, se viven y terminan convertidos en recuerdos. Este espacio es para eso.</p>
+        <p class="signature">Con cariño, tu compañero de aventuras 🦕</p>
+        <button id="continueToLoginBtn" class="primary-btn" type="button">Entrar a DinoCupones</button>
+      </article>
+    </div>
+  </section>
+
+  <section id="authScreen" class="screen auth-screen">
+    <div class="auth-orbit orbit-one"></div>
+    <div class="auth-orbit orbit-two"></div>
+    <main class="auth-card glass-panel">
+      <div class="brand-lockup">
+        <div class="brand-mark">🦕</div>
+        <div>
+          <span class="eyebrow">Recuerdos que se pueden canjear</span>
+          <h1>DinoCupones</h1>
+        </div>
+      </div>
+      <p class="auth-lead">Ingresa para ver tus cupones, completar aventuras y guardar sus mejores momentos.</p>
+      <form id="loginForm" class="form-stack">
+        <label>
+          <span>Usuario o correo</span>
+          <input id="loginEmail" type="email" autocomplete="username" placeholder="tu@correo.com" required />
+        </label>
+        <label>
+          <span>Contraseña</span>
+          <div class="password-wrap">
+            <input id="loginPassword" type="password" autocomplete="current-password" placeholder="••••••••" required />
+            <button id="togglePasswordBtn" type="button" class="icon-btn" aria-label="Mostrar contraseña">◉</button>
+          </div>
+        </label>
+        <button class="primary-btn wide" type="submit">Ingresar</button>
+      </form>
+      <button id="forgotPasswordBtn" class="text-btn" type="button">¿Olvidaste tu contraseña?</button>
+      <p class="auth-note">El administrador puede ayudarte enviando un enlace seguro de restablecimiento.</p>
+    </main>
+  </section>
+
+  <section id="appScreen" class="screen app-screen">
+    <header class="app-header">
+      <a class="brand-mini" href="#" aria-label="DinoCupones">
+        <span>🦕</span>
+        <strong>DinoCupones</strong>
+      </a>
+      <div class="header-actions">
+        <button id="notificationBtn" class="icon-bubble" type="button" aria-label="Notificaciones">
+          <span>♡</span><b id="notificationBadge" hidden>0</b>
+        </button>
+        <div class="profile-pill">
+          <span id="userAvatar">D</span>
+          <div>
+            <strong id="userName">Dino</strong>
+            <small id="userRole">Invitado especial</small>
+          </div>
+        </div>
+        <button id="logoutBtn" class="ghost-btn small" type="button">Salir</button>
+      </div>
+    </header>
+
+    <main class="app-shell">
+      <section class="hero-dashboard">
+        <div>
+          <span class="eyebrow">Tu colección de momentos</span>
+          <h2>Un cupón puede terminar siendo tu recuerdo favorito.</h2>
+          <p>Revisa lo que está disponible, completa lo que ya empezó y guarda cada cita en el DinoMural.</p>
+        </div>
+        <div class="hero-dino-card">
+          <div class="mini-planet"></div>
+          <div class="hero-dino">🦕</div>
+          <span>Próxima aventura</span>
+          <strong id="nextCouponTitle">Cargando...</strong>
+        </div>
+      </section>
+
+      <nav class="tabbar" aria-label="Navegación principal">
+        <button class="tab-btn is-active" data-tab="coupons" type="button"><span>🎟️</span>Cupones</button>
+        <button class="tab-btn" data-tab="mural" type="button"><span>📸</span>DinoMural</button>
+        <button id="adminTabBtn" class="tab-btn" data-tab="admin" type="button" hidden><span>⚙️</span>Administrar</button>
+      </nav>
+
+      <section id="couponsTab" class="tab-panel is-active">
+        <div class="section-heading">
+          <div><span class="eyebrow">Tus aventuras</span><h3>Cupones</h3></div>
+          <div class="filter-chips" id="couponFilters">
+            <button class="chip is-active" data-filter="active" type="button">Activos</button>
+            <button class="chip" data-filter="pending" type="button">Por completar</button>
+            <button class="chip" data-filter="completed" type="button">Canjeados</button>
+            <button class="chip" data-filter="expired" type="button">Vencidos</button>
+          </div>
+        </div>
+        <div id="couponGrid" class="coupon-grid"></div>
+      </section>
+
+      <section id="muralTab" class="tab-panel">
+        <div class="section-heading mural-heading">
+          <div><span class="eyebrow">Nuestro archivo favorito</span><h3>DinoMural</h3></div>
+          <button id="openUploadBtn" class="primary-btn compact" type="button">+ Subir recuerdo</button>
+        </div>
+        <div id="muralGrid" class="mural-grid"></div>
+      </section>
+
+      <section id="adminTab" class="tab-panel">
+        <div class="section-heading">
+          <div><span class="eyebrow">Panel privado</span><h3>Administración</h3></div>
+        </div>
+        <div class="admin-grid">
+          <form id="couponForm" class="admin-card glass-panel">
+            <div class="card-title"><span>🎟️</span><div><h4>Nuevo cupón</h4><p>Publica una nueva experiencia.</p></div></div>
+            <label><span>Nombre del cupón</span><input id="couponTitle" required maxlength="80" placeholder="Cena sorpresa" /></label>
+            <label><span>Actividad para canjearlo</span><textarea id="couponActivity" required maxlength="500" placeholder="Una cena elegida por..." rows="4"></textarea></label>
+            <label><span>Fecha de vencimiento</span><input id="couponExpiry" type="datetime-local" required /></label>
+            <button class="primary-btn wide" type="submit">Publicar cupón</button>
+          </form>
+
+          <form id="messageForm" class="admin-card glass-panel">
+            <div class="card-title"><span>💌</span><div><h4>Mensaje personalizado</h4><p>Aparece dentro de la app y puede generar una notificación.</p></div></div>
+            <label><span>Destinatario</span><select id="messageRecipient" required></select></label>
+            <label><span>Título</span><input id="messageTitle" required maxlength="60" placeholder="Tengo algo que decirte..." /></label>
+            <label><span>Mensaje</span><textarea id="messageBody" required maxlength="300" rows="4" placeholder="No olvides que..." ></textarea></label>
+            <button class="secondary-btn wide" type="submit">Enviar mensaje</button>
+          </form>
+
+          <section class="admin-card glass-panel admin-list-card">
+            <div class="card-title"><span>👥</span><div><h4>Personas</h4><p>Usuarios vinculados a DinoCupones.</p></div></div>
+            <div id="adminUsersList" class="admin-list"></div>
+          </section>
+
+          <section class="admin-card glass-panel admin-list-card">
+            <div class="card-title"><span>📥</span><div><h4>Recuerdos</h4><p>Descarga los archivos originales del DinoMural.</p></div></div>
+            <div id="adminMediaList" class="admin-list"></div>
+          </section>
+        </div>
+      </section>
+    </main>
+  </section>
+
+  <dialog id="couponDialog" class="modal-dialog">
+    <form method="dialog" class="modal-card">
+      <button class="modal-close" value="cancel" aria-label="Cerrar">×</button>
+      <span id="couponDialogEmoji" class="modal-emoji">💜</span>
+      <span id="couponDialogStatus" class="status-pill">Activo</span>
+      <h3 id="couponDialogTitle">Cupón</h3>
+      <p id="couponDialogActivity"></p>
+      <div class="modal-meta"><span>Vence</span><strong id="couponDialogExpiry"></strong></div>
+      <div id="couponDialogActions" class="modal-actions"></div>
+    </form>
+  </dialog>
+
+  <dialog id="uploadDialog" class="modal-dialog">
+    <form id="uploadForm" class="modal-card upload-card">
+      <button id="closeUploadBtn" class="modal-close" type="button" aria-label="Cerrar">×</button>
+      <span class="eyebrow">Nuevo recuerdo</span>
+      <h3>Sube algo al DinoMural</h3>
+      <label><span>Cupón relacionado</span><select id="uploadCoupon"></select></label>
+      <label><span>Foto o video</span><input id="uploadFile" type="file" accept="image/*,video/*" required /></label>
+      <div id="uploadPreview" class="upload-preview">El archivo aparecerá aquí.</div>
+      <label><span>Una frase para recordar</span><textarea id="uploadCaption" maxlength="240" rows="3" placeholder="La noche en la que..."></textarea></label>
+      <button id="uploadSubmitBtn" class="primary-btn wide" type="submit">Guardar recuerdo</button>
+      <small class="upload-note">Se conserva el archivo original para permitir su descarga sin recompresión.</small>
+    </form>
+  </dialog>
+
+  <aside id="notificationDrawer" class="notification-drawer" aria-hidden="true">
+    <div class="drawer-head"><div><span class="eyebrow">Para ti</span><h3>Mensajes</h3></div><button id="closeNotificationsBtn" class="icon-btn" type="button">×</button></div>
+    <div id="notificationList" class="notification-list"></div>
+  </aside>
+  <div id="drawerBackdrop" class="drawer-backdrop"></div>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
