@@ -86,7 +86,7 @@ export async function getProfile(uid){
 }
 
 export async function getPairForUser(uid) {
-  if (!configured) return demoPair.memberUids.includes(uid) ? {...demoPair} : null;
+  if (!configured) return demoPair.active && demoPair.memberUids.includes(uid) ? {...demoPair} : null;
   const snap = await fsMod.getDocs(
     fsMod.query(fsMod.collection(db,'pairs'), fsMod.where('memberUids','array-contains',uid))
   );
@@ -98,6 +98,9 @@ export async function getPairForUser(uid) {
 }
 
 export async function createPairInvite({uid,displayName}) {
+  const activePair = await getPairForUser(uid);
+  if (activePair) throw new Error('Primero debes cerrar tu DinoDúo actual.');
+
   if (!configured) {
     const code = randomCode();
     demoInvites.set(code,{fromUid:uid,fromName:displayName||'Dino',status:'pending',createdAt:new Date(),expiresAt:new Date(Date.now()+86400000*7)});
@@ -128,7 +131,7 @@ export async function acceptPairInvite({uid,displayName,code}) {
     const invite = demoInvites.get(cleanCode);
     if (!invite) throw new Error('Código no encontrado.');
     if (invite.fromUid === uid) throw new Error('No puedes vincularte contigo mismo.');
-    demoPair.id='pair-demo';
+    demoPair.id='pair-demo-'+cleanCode.toLowerCase();
     demoPair.memberUids=[invite.fromUid,uid];
     demoPair.memberNames={[invite.fromUid]:invite.fromName,[uid]:displayName||'Dino'};
     demoPair.active=true;
@@ -148,8 +151,8 @@ export async function acceptPairInvite({uid,displayName,code}) {
   const existingPair = await getPairForUser(uid);
   if (existingPair) throw new Error('Ya tienes un vínculo activo.');
 
-  const pairId = 'pair_' + [invite.fromUid,uid].sort().join('_');
-  const pairRef = fsMod.doc(db,'pairs',pairId);
+  const pairRef = fsMod.doc(fsMod.collection(db,'pairs'));
+  const pairId = pairRef.id;
   const batch = fsMod.writeBatch(db);
   const memberNames = {};
   memberNames[invite.fromUid] = invite.fromName || 'Tu persona';
@@ -173,24 +176,58 @@ export async function acceptPairInvite({uid,displayName,code}) {
   return {id:pairId,memberUids:[invite.fromUid,uid],memberNames,active:true,createdAt:new Date()};
 }
 
-export async function listCoupons(uid){
+export async function unlinkPair({pairId,uid}) {
+  if (!pairId || !uid) throw new Error('No hay un DinoDúo activo.');
+
+  if (!configured) {
+    if (demoPair.id !== pairId || !demoPair.memberUids.includes(uid) || !demoPair.active) {
+      throw new Error('No se encontró un vínculo activo.');
+    }
+    demoPair.active = false;
+    demoPair.unlinkedBy = uid;
+    demoPair.unlinkedAt = new Date();
+    return true;
+  }
+
+  const pairRef = fsMod.doc(db,'pairs',pairId);
+  const snap = await fsMod.getDoc(pairRef);
+  if (!snap.exists()) throw new Error('No se encontró el DinoDúo.');
+
+  const pair = snap.data();
+  if (pair.active === false || !pair.memberUids?.includes(uid)) {
+    throw new Error('No puedes cerrar este vínculo.');
+  }
+
+  await fsMod.updateDoc(pairRef,{
+    active:false,
+    unlinkedBy:uid,
+    unlinkedAt:fsMod.serverTimestamp()
+  });
+  return true;
+}
+
+export async function listCoupons(uid,activePairId=null){
   if(!configured) {
     return sortNewest(demoCoupons
-      .filter(c=>c.assignedToUid===uid)
+      .filter(c=>c.assignedToUid===uid && (!c.pairId || c.pairId===activePairId))
       .map(c=>normalizeCoupon(c,c.id)));
   }
   const snap = await fsMod.getDocs(
     fsMod.query(fsMod.collection(db,'coupons'),fsMod.where('assignedToUid','==',uid))
   );
-  return sortNewest(snap.docs.map(d=>normalizeCoupon(d.data(),d.id)));
+  return sortNewest(snap.docs
+    .map(d=>normalizeCoupon(d.data(),d.id))
+    .filter(c=>!c.pairId || c.pairId===activePairId));
 }
 
-export async function listSentCoupons(uid){
-  if(!configured) return sortNewest(demoCoupons.filter(c=>c.createdByUid===uid).map(c=>normalizeCoupon(c,c.id)));
+export async function listSentCoupons(uid,activePairId=null){
+  if(!configured) return sortNewest(demoCoupons.filter(c=>c.createdByUid===uid && (!c.pairId || c.pairId===activePairId)).map(c=>normalizeCoupon(c,c.id)));
   const snap = await fsMod.getDocs(
     fsMod.query(fsMod.collection(db,'coupons'),fsMod.where('createdByUid','==',uid))
   );
-  return sortNewest(snap.docs.map(d=>normalizeCoupon(d.data(),d.id)));
+  return sortNewest(snap.docs
+    .map(d=>normalizeCoupon(d.data(),d.id))
+    .filter(c=>!c.pairId || c.pairId===activePairId));
 }
 
 export async function listAllCoupons(){
@@ -316,8 +353,10 @@ export async function uploadMural({uid,pairId=null,uploaderName='',couponId,capt
   return {...data,id:docRef.id,createdAt:new Date()};
 }
 
-export async function listMessages(uid){
-  if(!configured) return sortNewest(demoMessages.filter(m=>m.targetUid===uid||m.targetUid==='all').map(m=>({...m})));
+export async function listMessages(uid,activePairId=null){
+  if(!configured) return sortNewest(demoMessages
+    .filter(m=>(m.targetUid===uid||m.targetUid==='all') && (!m.pairId || m.pairId===activePairId))
+    .map(m=>({...m})));
   const [personal,broadcast,readsSnap]=await Promise.all([
     fsMod.getDocs(fsMod.query(fsMod.collection(db,'messages'),fsMod.where('targetUid','==',uid))),
     fsMod.getDocs(fsMod.query(fsMod.collection(db,'messages'),fsMod.where('targetUid','==','all'))),
@@ -326,7 +365,9 @@ export async function listMessages(uid){
   const readIds=new Set(readsSnap.docs.map(d=>d.data().messageId));
   const docs=[...personal.docs,...broadcast.docs];
   const unique=new Map(docs.map(d=>[d.id,d]));
-  return sortNewest([...unique.values()].map(d=>({id:d.id,...d.data(),read:readIds.has(d.id),createdAt:asDate(d.data().createdAt)})));
+  return sortNewest([...unique.values()]
+    .map(d=>({id:d.id,...d.data(),read:readIds.has(d.id),createdAt:asDate(d.data().createdAt)}))
+    .filter(m=>!m.pairId || m.pairId===activePairId));
 }
 
 export async function listPairMessages(pairId){
