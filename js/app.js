@@ -212,7 +212,7 @@ function isStandaloneApp() {
 function renderInstallAvailability() {
   const installed = isStandaloneApp();
   const mobile = isIosDevice() || isAndroidDevice();
-  $('[data-install-app]').forEach((button) => {
+  document.querySelectorAll('[data-install-app]').forEach((button) => {
     button.hidden = installed || (!mobile && !deferredInstallPrompt);
   });
   $('#installAppBtn')?.setAttribute('aria-hidden', String(installed));
@@ -286,7 +286,7 @@ window.addEventListener('appinstalled', () => {
   toast('DinoCupones instalada correctamente 🦖💜');
 });
 
-$$('[data-install-app]').forEach((button) => {
+$document.querySelectorAll('[data-install-app]').forEach((button) => {
   button.onclick = openInstallDialog;
 });
 $('#closeInstallDialogBtn').onclick = () => $('#installDialog').close();
