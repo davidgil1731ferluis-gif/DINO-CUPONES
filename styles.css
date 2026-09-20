@@ -363,7 +363,7 @@ input:focus,textarea:focus,select:focus{border-color:#ba96ff;box-shadow:0 0 0 4p
 .icon-bubble{position:relative;border:0;width:46px;height:46px;border-radius:15px;background:linear-gradient(135deg,#f8def2,#ede0ff);color:#74368f;font-size:1.1rem;box-shadow:var(--shadow-soft)}
 .icon-bubble b{position:absolute;top:-6px;right:-4px;min-width:22px;height:22px;padding:0 6px;border-radius:999px;display:grid;place-items:center;background:#ff5da5;color:#fff;font-size:.72rem}
 .profile-pill{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:18px;background:rgba(255,255,255,.72);border:1px solid rgba(228,215,233,.9)}
-.profile-pill>span{width:40px;height:40px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(135deg,#a774ff,#ff8fc8);color:#fff;font-weight:800}
+.profile-pill>#userAvatar{width:40px;height:40px;flex:0 0 40px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(135deg,#a774ff,#ff8fc8);color:#fff;font-weight:800}
 .profile-pill small{display:block;color:var(--muted);margin-top:2px}
 .app-shell{width:min(1180px,94vw);margin:0 auto;padding:24px 0 48px}
 .hero-dashboard{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(280px,.9fr);gap:24px;align-items:stretch;padding:26px;border-radius:34px;background:linear-gradient(135deg,rgba(255,255,255,.78),rgba(255,247,251,.92));border:1px solid rgba(236,220,236,.95);box-shadow:var(--shadow);content-visibility:auto}
@@ -1978,4 +1978,75 @@ button:focus-visible,
 @media(max-width:430px){
   .pair-quick-actions{grid-template-columns:1fr}
   .account-card{padding:22px 16px}
+}
+
+
+/* Mobile header hardening */
+.profile-pill-button .profile-pill-copy{
+  width:auto;
+  height:auto;
+  min-width:0;
+  border-radius:0;
+  background:none;
+  color:inherit;
+  overflow:hidden;
+}
+.profile-pill-button .profile-pill-copy strong,
+.profile-pill-button .profile-pill-copy small{
+  max-width:150px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+@media(max-width:760px){
+  .app-header{
+    min-height:64px;
+    padding:9px 10px;
+    gap:8px;
+  }
+  .brand-mini{flex:0 0 auto;gap:0}
+  .brand-mini>span{width:40px;height:40px}
+  .header-actions{
+    min-width:0;
+    margin-left:auto;
+    gap:6px;
+    flex-wrap:nowrap;
+  }
+  .header-actions .icon-bubble{
+    width:40px;
+    height:40px;
+    flex:0 0 40px;
+    border-radius:13px;
+  }
+  .profile-pill-button{
+    width:42px;
+    height:42px;
+    flex:0 0 42px;
+    padding:1px;
+    display:grid;
+    place-items:center;
+    overflow:hidden;
+  }
+  .profile-pill-button>#userAvatar{
+    width:36px;
+    height:36px;
+    flex-basis:36px;
+    border-radius:12px;
+  }
+  .profile-pill-button .profile-pill-copy{
+    display:none!important;
+  }
+  #logoutBtn{
+    min-width:58px;
+    padding:9px 11px;
+    flex:0 0 auto;
+    white-space:nowrap;
+  }
+}
+@media(max-width:390px){
+  .app-header{padding-left:8px;padding-right:8px}
+  .header-actions{gap:4px}
+  .header-actions .icon-bubble{width:38px;height:38px;flex-basis:38px}
+  .profile-pill-button{width:40px;height:40px;flex-basis:40px}
+  #logoutBtn{min-width:52px;padding:8px 9px;font-size:.76rem}
 }
