@@ -2,6 +2,7 @@ import {
   firebaseReady,
   onAuth,
   login,
+  registerAccount,
   logout,
   resetPassword,
   getProfile,
@@ -104,7 +105,7 @@ function celebrateFrom(element) {
 
 function observeReveals() {
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) {
-    $$('.reveal-item').forEach(el=>el.classList.add('is-revealed'));
+    $$$('.reveal-item').forEach(el=>el.classList.add('is-revealed'));
     return;
   }
   const observer=new IntersectionObserver((entries,obs)=>{
@@ -115,7 +116,7 @@ function observeReveals() {
       }
     });
   },{rootMargin:'80px 0px',threshold:.08});
-  $$('.reveal-item:not(.is-revealed)').forEach(el=>observer.observe(el));
+  $$$('.reveal-item:not(.is-revealed)').forEach(el=>observer.observe(el));
 }
 
 function showScreen(id) {
@@ -168,6 +169,63 @@ function escapeHtml(text = '') {
 
 function safeConfirm(message) {
   return window.confirm(message);
+}
+
+function submitButton(event) {
+  return event.submitter || event.currentTarget.querySelector('button[type="submit"]');
+}
+
+function setButtonBusy(button, busy, busyText = 'Procesando...') {
+  if (!button) return;
+  if (busy) {
+    button.dataset.originalText ||= button.textContent;
+    button.disabled = true;
+    button.textContent = busyText;
+  } else {
+    button.disabled = false;
+    if (button.dataset.originalText) {
+      button.textContent = button.dataset.originalText;
+      delete button.dataset.originalText;
+    }
+  }
+}
+
+function setAuthMode(mode = 'login') {
+  const loginMode = mode === 'login';
+  $('#loginForm').hidden = !loginMode;
+  $('#registerForm').hidden = loginMode;
+  $('#loginHelpArea').hidden = !loginMode;
+  $('#demoAccessBtn').hidden = !loginMode || firebaseReady;
+  $('#showLoginBtn').classList.toggle('is-active', loginMode);
+  $('#showRegisterBtn').classList.toggle('is-active', !loginMode);
+  $('#showLoginBtn').setAttribute('aria-selected', String(loginMode));
+  $('#showRegisterBtn').setAttribute('aria-selected', String(!loginMode));
+}
+
+function resetSessionState() {
+  currentUser = null;
+  profile = null;
+  coupons = [];
+  mural = [];
+  messages = [];
+  pairMessages = [];
+  sentCoupons = [];
+  adminCoupons = [];
+  adminMural = [];
+  users = [];
+  currentPair = null;
+  partnerUid = null;
+  partnerName = '';
+  filter = 'active';
+  couponView = 'received';
+  $$('.chip').forEach((item) => item.classList.toggle('is-active', item.dataset.filter === 'active'));
+  $$('[data-coupon-view]').forEach((item) => item.classList.toggle('is-active', item.dataset.couponView === 'received'));
+  ['#couponDialog','#uploadDialog','#muralViewerDialog'].forEach((selector) => {
+    const dialog = $(selector);
+    if (dialog?.open) dialog.close();
+  });
+  toggleDrawer(false);
+  setAuthMode('login');
 }
 
 const introTimers = [];
@@ -302,9 +360,20 @@ $('#soundToggleBtn').onclick = () => {
   if (soundEnabled) playChime('soft');
 };
 
+$('#showLoginBtn').onclick = () => setAuthMode('login');
+$('#showRegisterBtn').onclick = () => setAuthMode('register');
+
 $('#togglePasswordBtn').onclick = () => {
   const input = $('#loginPassword');
   input.type = input.type === 'password' ? 'text' : 'password';
+};
+
+$('#toggleRegisterPasswordBtn').onclick = () => {
+  const password = $('#registerPassword');
+  const confirm = $('#registerPasswordConfirm');
+  const nextType = password.type === 'password' ? 'text' : 'password';
+  password.type = nextType;
+  confirm.type = nextType;
 };
 
 $('#forgotPasswordBtn').onclick = async () => {
@@ -312,44 +381,98 @@ $('#forgotPasswordBtn').onclick = async () => {
   if (!email) return toast('Escribe primero tu correo.');
   try {
     await resetPassword(email);
-    toast('Se envió el enlace de restablecimiento.');
+    toast(firebaseReady ? 'Se envió el enlace de restablecimiento.' : 'Modo demo: el restablecimiento se habilita al conectar Firebase.');
   } catch (error) {
     console.error(error);
     toast('No fue posible enviar el enlace.');
   }
 };
 
+$('#demoAccessBtn').onclick = async () => {
+  const button = $('#demoAccessBtn');
+  setButtonBusy(button, true, 'Entrando...');
+  try {
+    await enterApp({uid:'demo-user',email:'demo@dinocupones.app'});
+    toast('Administrador demo activo.');
+  } catch (error) {
+    console.error(error);
+    toast('No se pudo abrir el modo demo.');
+  } finally {
+    setButtonBusy(button, false);
+  }
+};
+
 $('#loginForm').onsubmit = async (event) => {
   event.preventDefault();
-  const submitter = event.submitter;
-  submitter.disabled = true;
+  const button = submitButton(event);
+  setButtonBusy(button, true, 'Ingresando...');
   try {
-    await login($('#loginEmail').value.trim(), $('#loginPassword').value);
+    const credential = await login($('#loginEmail').value.trim(), $('#loginPassword').value);
     if (!firebaseReady) {
-      await enterApp({ uid: 'demo-user', email: $('#loginEmail').value.trim() || 'demo@dinocupones.app' });
-      toast('Modo demo: conecta Firebase para usar datos reales.');
+      await enterApp(credential.user);
+      toast(credential.user.uid === 'demo-user'
+        ? 'Administrador demo activo.'
+        : 'Cuenta demo local iniciada.');
     }
   } catch (error) {
     console.error(error);
     toast(humanAuthError(error));
   } finally {
-    submitter.disabled = false;
+    setButtonBusy(button, false);
+  }
+};
+
+$('#registerForm').onsubmit = async (event) => {
+  event.preventDefault();
+  const password = $('#registerPassword').value;
+  const confirm = $('#registerPasswordConfirm').value;
+  if (password !== confirm) return toast('Las contraseñas no coinciden.');
+
+  const button = submitButton(event);
+  setButtonBusy(button, true, 'Creando cuenta...');
+  try {
+    const credential = await registerAccount({
+      displayName: $('#registerName').value.trim(),
+      email: $('#registerEmail').value.trim(),
+      password
+    });
+    event.currentTarget.reset();
+
+    if (!firebaseReady) {
+      await enterApp(credential.user);
+      toast('Cuenta demo creada. Ya puedes probarla y volver a iniciar sesión con ella.');
+    } else {
+      toast('Cuenta creada correctamente 💜');
+    }
+  } catch (error) {
+    console.error(error);
+    toast(humanAuthError(error));
+  } finally {
+    setButtonBusy(button, false);
   }
 };
 
 $('#logoutBtn').onclick = async () => {
-  await logout();
-  currentUser = null;
-  profile = null;
-  showScreen('#authScreen');
+  try {
+    await logout();
+  } finally {
+    resetSessionState();
+    showScreen('#authScreen');
+  }
 };
 
 function humanAuthError(error) {
   const code = error?.code || '';
-  if (code.includes('invalid-credential')) return 'Usuario o contraseña incorrectos.';
+  if (code.includes('invalid-credential') || code.includes('wrong-password') || code.includes('user-not-found')) return 'Usuario o contraseña incorrectos.';
+  if (code.includes('email-already-in-use')) return 'Ese correo ya tiene una cuenta.';
+  if (code.includes('weak-password')) return 'La contraseña debe tener al menos 6 caracteres.';
+  if (code.includes('invalid-email')) return 'Escribe un correo válido.';
+  if (code.includes('invalid-display-name')) return 'Escribe un nombre válido.';
   if (code.includes('too-many-requests')) return 'Demasiados intentos. Intenta más tarde.';
-  return 'No se pudo iniciar sesión.';
+  return error?.message || 'No se pudo completar la operación.';
 }
+
+setAuthMode('login');
 
 onAuth(async (user) => {
   if (firebaseReady && user) {
@@ -545,8 +668,8 @@ $('#pairCodeInput').addEventListener('input', (event) => {
 
 $('#pairAcceptForm').onsubmit = async (event) => {
   event.preventDefault();
-  const submitter = event.submitter;
-  submitter.disabled = true;
+  const submitter = submitButton(event);
+  setButtonBusy(submitter, true);
   try {
     await acceptPairInvite({
       uid: currentUser.uid,
@@ -561,7 +684,7 @@ $('#pairAcceptForm').onsubmit = async (event) => {
     console.error(error);
     toast(error?.message || 'No se pudo completar el vínculo.');
   } finally {
-    submitter.disabled = false;
+    setButtonBusy(submitter, false);
   }
 };
 
@@ -569,8 +692,8 @@ $('#pairCouponForm').onsubmit = async (event) => {
   event.preventDefault();
   if (!currentPair || !partnerUid) return toast('Primero vincula las dos cuentas.');
 
-  const submitter = event.submitter;
-  submitter.disabled = true;
+  const submitter = submitButton(event);
+  setButtonBusy(submitter, true);
   try {
     await createCoupon({
       pairId: currentPair.id,
@@ -590,7 +713,7 @@ $('#pairCouponForm').onsubmit = async (event) => {
     console.error(error);
     toast('No se pudo enviar el cupón.');
   } finally {
-    submitter.disabled = false;
+    setButtonBusy(submitter, false);
   }
 };
 
@@ -615,7 +738,7 @@ $('#unlinkPairBtn').onclick = async () => {
     pairMessages = [];
     sentCoupons = [];
     couponView = 'received';
-    $$$('[data-coupon-view]').forEach((item) => {
+    $$$$('[data-coupon-view]').forEach((item) => {
       item.classList.toggle('is-active', item.dataset.couponView === 'received');
     });
     await refreshAll();
@@ -634,8 +757,8 @@ $('#pairMessageForm').onsubmit = async (event) => {
   event.preventDefault();
   if (!currentPair || !partnerUid) return toast('Primero vincula las dos cuentas.');
 
-  const submitter = event.submitter;
-  submitter.disabled = true;
+  const submitter = submitButton(event);
+  setButtonBusy(submitter, true);
   try {
     await sendMessage({
       pairId: currentPair.id,
@@ -654,31 +777,31 @@ $('#pairMessageForm').onsubmit = async (event) => {
     console.error(error);
     toast('No se pudo enviar el mensaje.');
   } finally {
-    submitter.disabled = false;
+    setButtonBusy(submitter, false);
   }
 };
 
-$$$('.tab-btn').forEach((button) => {
+$$$$('.tab-btn').forEach((button) => {
   button.onclick = () => {
     const tab = button.dataset.tab;
-    $$('.tab-btn').forEach((item) => item.classList.toggle('is-active', item === button));
-    $$('.tab-panel').forEach((panel) => panel.classList.remove('is-active'));
+    $$$('.tab-btn').forEach((item) => item.classList.toggle('is-active', item === button));
+    $$$('.tab-panel').forEach((panel) => panel.classList.remove('is-active'));
     $(`#${tab}Tab`).classList.add('is-active');
   };
 });
 
-$$$('[data-coupon-view]').forEach((button) => {
+$$$$('[data-coupon-view]').forEach((button) => {
   button.onclick = () => {
     couponView = button.dataset.couponView;
-    $$$('[data-coupon-view]').forEach((item) => item.classList.toggle('is-active', item === button));
+    $$$$('[data-coupon-view]').forEach((item) => item.classList.toggle('is-active', item === button));
     renderCoupons();
   };
 });
 
-$$$('.chip').forEach((button) => {
+$$$$('.chip').forEach((button) => {
   button.onclick = () => {
     filter = button.dataset.filter;
-    $$('.chip').forEach((item) => item.classList.toggle('is-active', item === button));
+    $$$('.chip').forEach((item) => item.classList.toggle('is-active', item === button));
     renderCoupons();
   };
 });
@@ -766,7 +889,7 @@ function renderCoupons() {
     : `<div class="empty-state"><strong>${couponView === 'sent' ? 'Todavía no has enviado cupones.' : 'No hay cupones aquí.'}</strong>${couponView === 'sent' ? 'Cuando regales uno podrás seguir su estado desde aquí.' : 'Cuando aparezca uno, este espacio dejará de estar tan tranquilo. 🦖'}</div>`;
 
   observeReveals();
-  $$('[data-open-coupon]').forEach((button) => {
+  $$$('[data-open-coupon]').forEach((button) => {
     button.onclick = () => openCoupon(button.dataset.openCoupon, button.dataset.couponSource || 'received');
   });
 }
@@ -920,7 +1043,7 @@ function renderMural() {
     : `<div class="empty-state"><strong>El mural todavía está vacío.</strong>${currentPair ? 'La primera foto de ustedes puede empezar esta historia.' : 'Puedes guardar recuerdos privados mientras conectas tu DinoDúo.'}</div>`;
 
   observeReveals();
-  $$('[data-mural-id]').forEach((card) => {
+  $$$('[data-mural-id]').forEach((card) => {
     const open = () => openMuralViewer(card.dataset.muralId);
     card.onclick = (event) => {
       if (event.target.closest('button,a')) return;
@@ -1021,7 +1144,7 @@ function renderMessages() {
       </button>`).join('')
     : `<div class="empty-state"><strong>Sin mensajes.</strong>Cuando llegue uno aparecerá aquí.</div>`;
 
-  $$('[data-message-id]').forEach((button) => {
+  $$$('[data-message-id]').forEach((button) => {
     button.onclick = async () => {
       await markMessageRead(button.dataset.messageId);
       const message = messages.find((item) => item.id === button.dataset.messageId);
@@ -1039,8 +1162,8 @@ onForegroundMessage((payload) => {
 
 $('#couponForm').onsubmit = async (event) => {
   event.preventDefault();
-  const submitter = event.submitter;
-  submitter.disabled = true;
+  const submitter = submitButton(event);
+  setButtonBusy(submitter, true);
   try {
     const recipientUid = $('#couponRecipient').value;
     const recipient = users.find((user) => user.uid === recipientUid);
@@ -1063,14 +1186,14 @@ $('#couponForm').onsubmit = async (event) => {
     console.error(error);
     toast(error?.message || 'No se pudo publicar el cupón.');
   } finally {
-    submitter.disabled = false;
+    setButtonBusy(submitter, false);
   }
 };
 
 $('#messageForm').onsubmit = async (event) => {
   event.preventDefault();
-  const submitter = event.submitter;
-  submitter.disabled = true;
+  const submitter = submitButton(event);
+  setButtonBusy(submitter, true);
   try {
     const targetUid = $('#messageRecipient').value;
     await sendMessage({
@@ -1090,7 +1213,7 @@ $('#messageForm').onsubmit = async (event) => {
     console.error(error);
     toast('No se pudo enviar el mensaje.');
   } finally {
-    submitter.disabled = false;
+    setButtonBusy(submitter, false);
   }
 };
 
@@ -1115,7 +1238,7 @@ function renderAdminUsers() {
       <button class="mini-btn" data-reset-email="${escapeHtml(user.email || '')}" type="button">Restablecer</button>
     </div>`).join('');
 
-  $$('[data-reset-email]').forEach((button) => {
+  $$$('[data-reset-email]').forEach((button) => {
     button.onclick = async () => {
       if (!button.dataset.resetEmail) return toast('Este usuario no tiene correo registrado.');
       try {
@@ -1159,7 +1282,7 @@ function renderAdminCoupons() {
       </div>`).join('')
     : '<div class="empty-state"><strong>Sin cupones creados.</strong></div>';
 
-  $$('[data-reset-coupon]').forEach((button) => {
+  $$$('[data-reset-coupon]').forEach((button) => {
     button.onclick = async () => {
       try {
         await resetCoupon(button.dataset.resetCoupon);
@@ -1173,7 +1296,7 @@ function renderAdminCoupons() {
     };
   });
 
-  $$('[data-delete-coupon]').forEach((button) => {
+  $$$('[data-delete-coupon]').forEach((button) => {
     button.onclick = async () => {
       if (!safeConfirm('¿Deseas eliminar este cupón?')) return;
       try {
