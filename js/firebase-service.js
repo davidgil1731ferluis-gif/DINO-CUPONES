@@ -944,6 +944,42 @@ export async function requestPushPermission(uid){
   return status.ok;
 }
 
+export async function sendPushTest(uid){
+  if(configured) await ensureFirebase();
+  if(!configured || !workerReady || !oneSignalReady || !uid){
+    return {ok:false,reason:'PUSH_NOT_READY',recipients:0};
+  }
+
+  const status=await ensurePushSubscription(uid,{prompt:false});
+  if(!status.ok){
+    return {
+      ok:false,
+      reason:'DEVICE_NOT_SUBSCRIBED',
+      recipients:0,
+      subscription:status
+    };
+  }
+
+  const result=await workerPost('/notify',{
+    targetUid:uid,
+    title:'DinoCupones está listo 🦖💜',
+    body:'Esta es una notificación de prueba para confirmar que tu dispositivo quedó conectado.'
+  });
+
+  const recipients=Number.isFinite(Number(result?.recipients))
+    ? Number(result.recipients)
+    : 0;
+
+  return {
+    ok:Boolean(result?.ok) && recipients>0,
+    reason:recipients>0?null:'NO_SUBSCRIBED_DEVICE',
+    recipients,
+    notificationId:result?.id||null,
+    subscription:status,
+    raw:result
+  };
+}
+
 export function onForegroundMessage(callback){
   let cleanup=()=>{};
   if(!oneSignalReady) return cleanup;
