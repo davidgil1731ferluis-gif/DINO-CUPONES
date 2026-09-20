@@ -54,6 +54,8 @@ let partnerName = '';
 let filter = 'active';
 let couponView = 'received';
 let localDemoMedia = [];
+let enterAppPromise = null;
+let enteredUserUid = null;
 const screens = ['#introScreen', '#letterScreen', '#authScreen', '#appScreen'];
 
 let soundEnabled = false;
@@ -526,8 +528,8 @@ $('#loginForm').onsubmit = async (event) => {
   setButtonBusy(button, true, 'Ingresando...');
   try {
     const credential = await login($('#loginEmail').value.trim(), $('#loginPassword').value);
+    await enterApp(credential.user);
     if (!firebaseReady) {
-      await enterApp(credential.user);
       toast(credential.user.uid === 'demo-user'
         ? 'Administrador demo activo.'
         : 'Cuenta demo local iniciada.');
@@ -656,35 +658,68 @@ onAuth(async (user) => {
 });
 
 async function enterApp(user) {
+  if (!user?.uid) return;
+  if (enteredUserUid === user.uid && currentUser?.uid === user.uid && profile) return;
+  if (enterAppPromise && currentUser?.uid === user.uid) return enterAppPromise;
+
   currentUser = user;
-  profile = await getProfile(user.uid);
-  $('#userName').textContent = profile.displayName || 'Dino';
-  $('#userRole').textContent = profile.role === 'admin' ? 'Administrador' : 'Invitado especial';
-  $('#userAvatar').textContent = (profile.displayName || 'D')[0].toUpperCase();
-  $('#currentAccountEmail').textContent = profile.email || user.email || 'Sin correo';
-  const isAdmin = profile.role === 'admin';
-  $('#adminTabBtn').hidden = !isAdmin;
-  $('.tabbar').classList.toggle('has-admin', isAdmin);
+
+  // Muestra la aplicación inmediatamente; los datos llegan después.
+  const provisionalName = user.displayName || user.email?.split('@')[0] || 'Dino';
+  $('#userName').textContent = provisionalName;
+  $('#userRole').textContent = 'Cargando...';
+  $('#userAvatar').textContent = provisionalName[0]?.toUpperCase() || 'D';
+  $('#currentAccountEmail').textContent = user.email || 'Cargando...';
+  $('#adminTabBtn').hidden = true;
+  $('.tabbar').classList.remove('has-admin');
+  $('#nextCouponTitle').textContent = 'Cargando tus aventuras...';
   showScreen('#appScreen');
-  await refreshAll();
 
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch((error) => {
-      console.warn('No se pudo registrar el service worker de la app.', error);
-    });
-  }
+  enterAppPromise = (async () => {
+    const [resolvedProfile, resolvedPair] = await Promise.all([
+      getProfile(user.uid),
+      getPairForUser(user.uid)
+    ]);
 
-  if (pushReady) {
-    identifyPushUser(user.uid).catch((error) => {
-      console.warn('OneSignal todavía no pudo identificar al usuario.', error);
-    });
+    profile = resolvedProfile;
+    $('#userName').textContent = profile.displayName || provisionalName;
+    $('#userRole').textContent = profile.role === 'admin' ? 'Administrador' : 'Invitado especial';
+    $('#userAvatar').textContent = (profile.displayName || provisionalName || 'D')[0].toUpperCase();
+    $('#currentAccountEmail').textContent = profile.email || user.email || 'Sin correo';
+
+    const isAdmin = profile.role === 'admin';
+    $('#adminTabBtn').hidden = !isAdmin;
+    $('.tabbar').classList.toggle('has-admin', isAdmin);
+
+    await refreshAll(resolvedPair);
+    enteredUserUid = user.uid;
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch((error) => {
+        console.warn('No se pudo registrar el service worker de la app.', error);
+      });
+    }
+
+    if (pushReady) {
+      identifyPushUser(user.uid).catch((error) => {
+        console.warn('OneSignal todavía no pudo identificar al usuario.', error);
+      });
+    }
+    renderNotificationPermissionState();
+    renderInstallAvailability();
+  })();
+
+  try {
+    await enterAppPromise;
+  } finally {
+    enterAppPromise = null;
   }
-  renderNotificationPermissionState();
-  renderInstallAvailability();
 }
 
-async function refreshAll() {
-  currentPair = await getPairForUser(currentUser.uid);
+async function refreshAll(pairOverride = undefined) {
+  currentPair = pairOverride !== undefined
+    ? pairOverride
+    : await getPairForUser(currentUser.uid);
   partnerUid = currentPair?.memberUids?.find((uid) => uid !== currentUser.uid) || null;
   partnerName = partnerUid
     ? (currentPair?.memberNames?.[partnerUid] || 'Tu persona favorita')
