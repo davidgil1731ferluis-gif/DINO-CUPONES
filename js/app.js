@@ -30,6 +30,7 @@ import {
   markMessageRead,
   listUsers,
   requestPushPermission,
+  sendPushTest,
   getPushStatus,
   identifyPushUser,
   clearPushUser,
@@ -1620,6 +1621,56 @@ $('#enableNotificationsBtn').onclick = async () => {
   } catch (error) {
     console.error(error);
     toast('No se pudieron activar las notificaciones.');
+  }
+};
+
+$('#testPushBtn').onclick = async () => {
+  const button = $('#testPushBtn');
+  const resultBox = $('#pushTestResult');
+  if (!currentUser?.uid) return toast('Primero inicia sesión.');
+
+  setButtonBusy(button,true,'Probando...');
+  resultBox.classList.remove('is-ok','is-error','is-warning');
+  resultBox.textContent = 'Comprobando suscripción y enviando prueba…';
+
+  try {
+    const result = await sendPushTest(currentUser.uid);
+
+    if (result?.ok) {
+      resultBox.classList.add('is-ok');
+      resultBox.textContent =
+        'OneSignal aceptó la notificación · destinatarios: ' +
+        result.recipients +
+        (result.notificationId ? ' · ID ' + result.notificationId : '');
+      toast('Notificación de prueba enviada. Revisa este dispositivo.');
+      return;
+    }
+
+    if (result?.reason === 'DEVICE_NOT_SUBSCRIBED') {
+      resultBox.classList.add('is-warning');
+      resultBox.textContent = 'Este dispositivo todavía no está suscrito en OneSignal. Pulsa Activar/Reparar primero.';
+      toast('El dispositivo todavía no está suscrito.');
+      return;
+    }
+
+    if (result?.reason === 'NO_SUBSCRIBED_DEVICE') {
+      resultBox.classList.add('is-error');
+      resultBox.textContent = 'El Worker llegó a OneSignal, pero OneSignal encontró 0 dispositivos suscritos para este usuario.';
+      toast('OneSignal encontró 0 dispositivos suscritos.');
+      return;
+    }
+
+    resultBox.classList.add('is-error');
+    resultBox.textContent = 'La prueba no pudo confirmar la entrega push.';
+    toast('La prueba push no pudo completarse.');
+  } catch (error) {
+    console.error(error);
+    resultBox.classList.add('is-error');
+    const detail = error?.details?.errors || error?.details?.error || error?.message || 'Error desconocido';
+    resultBox.textContent = 'Error: ' + (typeof detail === 'string' ? detail : JSON.stringify(detail));
+    toast('La prueba push devolvió un error.');
+  } finally {
+    setButtonBusy(button,false);
   }
 };
 
