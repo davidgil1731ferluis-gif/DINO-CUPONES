@@ -1,8 +1,6 @@
-const CACHE_NAME = 'dinocupones-shell-v9';
+const CACHE_NAME = 'dinocupones-shell-v10';
 const APP_SHELL = [
-  './',
   './index.html',
-  './styles.css',
   './manifest.webmanifest',
   './assets/dino-heart.svg',
   './assets/icons/dinocupones-180.png',
@@ -10,11 +8,17 @@ const APP_SHELL = [
   './assets/icons/dinocupones-512.png'
 ];
 
+async function cacheFreshShell() {
+  const cache = await caches.open(CACHE_NAME);
+  await Promise.all(APP_SHELL.map(async (url) => {
+    const response = await fetch(url, { cache: 'reload' });
+    if (response.ok) await cache.put(url, response);
+  }));
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(APP_SHELL))
-      .then(() => self.skipWaiting())
+    cacheFreshShell().then(() => self.skipWaiting())
   );
 });
 
@@ -28,6 +32,10 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
+});
+
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   if (request.method !== 'GET') return;
@@ -38,10 +46,12 @@ self.addEventListener('fetch', (event) => {
 
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request)
+      fetch(request, { cache: 'no-store' })
         .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', copy));
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', copy));
+          }
           return response;
         })
         .catch(() => caches.match('./index.html'))
@@ -49,15 +59,38 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  const isCodeOrManifest =
+    ['script', 'style', 'worker', 'manifest'].includes(request.destination)
+    || /\.(?:js|css|webmanifest)$/i.test(url.pathname);
+
+  if (isCodeOrManifest) {
+    event.respondWith(
+      fetch(request, { cache: 'no-store' })
+        .then((response) => {
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request))
+    );
+    return;
+  }
+
   event.respondWith(
-    fetch(request)
-      .then((response) => {
-        if (response.ok) {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-        }
-        return response;
-      })
-      .catch(() => caches.match(request))
+    caches.match(request).then((cached) => {
+      const network = fetch(request, { cache: 'no-cache' })
+        .then((response) => {
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          }
+          return response;
+        })
+        .catch(() => cached);
+
+      return cached || network;
+    })
   );
 });
