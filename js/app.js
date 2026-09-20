@@ -695,12 +695,6 @@ async function enterApp(user) {
     await refreshAll(resolvedPair);
     enteredUserUid = user.uid;
 
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js').catch((error) => {
-        console.warn('No se pudo registrar el service worker de la app.', error);
-      });
-    }
-
     if (pushReady) {
       identifyPushUser(user.uid).catch((error) => {
         console.warn('OneSignal todavía no pudo identificar al usuario.', error);
@@ -806,6 +800,19 @@ $('#dismissPairSuccessBtn').onclick = () => {
   $('#pairSuccessBanner').hidden = true;
 };
 
+function showPairSetupStatus(message) {
+  const box = $('#pairSetupStatus');
+  if (!box) return;
+  const paragraph = box.querySelector('p');
+  if (paragraph && message) paragraph.textContent = message;
+  box.hidden = false;
+}
+
+function hidePairSetupStatus() {
+  const box = $('#pairSetupStatus');
+  if (box) box.hidden = true;
+}
+
 async function syncPairState({announce=false,full=false}={}) {
   if (!currentUser?.uid || pairSyncInFlight) return;
   pairSyncInFlight = true;
@@ -822,9 +829,15 @@ async function syncPairState({announce=false,full=false}={}) {
         : '';
       renderPairWorkspace();
 
-      if (pair && announce) {
-        showPairSuccess('Tu vínculo con ' + partnerName + ' ya está activo.');
-        playChime('complete');
+      if (pair) {
+        hidePairSetupStatus();
+        if (announce) {
+          showPairSuccess('Tu vínculo con ' + partnerName + ' ya está activo.');
+          playChime('complete');
+        }
+      } else if (previousId && announce) {
+        showPairSetupStatus('El DinoDúo anterior fue cerrado. Ya puedes generar o aceptar un nuevo código.');
+        toast('Tu DinoDúo anterior fue cerrado.');
       }
     }
 
@@ -849,6 +862,7 @@ function renderPairWorkspace() {
 
   if (!hasPair) return;
 
+  hidePairSetupStatus();
   const myName = profile?.displayName || 'Tú';
   $('#pairMeName').textContent = myName;
   $('#pairPartnerName').textContent = partnerName;
@@ -954,6 +968,7 @@ $('#pairAcceptForm').onsubmit = async (event) => {
     });
 
     currentPair = pair;
+    hidePairSetupStatus();
     partnerUid = pair.memberUids?.find((uid) => uid !== currentUser.uid) || null;
     partnerName = partnerUid
       ? (pair.memberNames?.[partnerUid] || 'Tu persona favorita')
@@ -1009,35 +1024,43 @@ $('#unlinkPairBtn').onclick = async () => {
   if (!currentPair) return toast('No hay un DinoDúo activo.');
 
   const partner = partnerName || 'tu persona';
+  const pairId = currentPair.id;
   const confirmed = safeConfirm(
-    '¿Deseas desvincularte de ' + partner + '?\n\n' +
-    'El DinoDúo actual se cerrará. Los cupones, mensajes y recuerdos compartidos quedarán archivados y no se mezclarán con un vínculo nuevo.'
+    '¿Desvincular tu DinoDúo con ' + partner + '?\n\n' +
+    'Ambas cuentas quedarán libres para vincularse de nuevo. Los cupones, mensajes y recuerdos del vínculo anterior permanecerán archivados y no se mezclarán con uno nuevo.'
   );
   if (!confirmed) return;
 
   const button = $('#unlinkPairBtn');
   button.disabled = true;
   button.textContent = 'Desvinculando...';
+
   try {
-    await unlinkPair({ pairId: currentPair.id, uid: currentUser.uid });
+    await unlinkPair({ pairId, uid: currentUser.uid });
+
     currentPair = null;
     partnerUid = null;
     partnerName = '';
     pairMessages = [];
     sentCoupons = [];
     couponView = 'received';
-    $$('[data-coupon-view]').forEach((item) => {
+
+    document.querySelectorAll('[data-coupon-view]').forEach((item) => {
       item.classList.toggle('is-active', item.dataset.couponView === 'received');
     });
-    await refreshAll();
+
+    renderPairWorkspace();
+    showPairSetupStatus('El vínculo se cerró correctamente. Puedes generar un código nuevo o aceptar el de otra persona.');
+    await refreshAll(null);
+
     playChime('soft');
-    toast('DinoDúo cerrado. Tu cuenta ya puede vincularse de nuevo.');
+    toast('DinoDúo desvinculado correctamente 💔');
   } catch (error) {
     console.error(error);
-    toast(error?.message || 'No se pudo cerrar el DinoDúo.');
+    toast(error?.message || 'No se pudo desvincular el DinoDúo.');
   } finally {
     button.disabled = false;
-    button.textContent = 'Desvincular DinoDúo';
+    button.textContent = '💔 Desvincular DinoDúo';
   }
 };
 
