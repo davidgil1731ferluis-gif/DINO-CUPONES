@@ -286,7 +286,7 @@ window.addEventListener('appinstalled', () => {
   toast('DinoCupones instalada correctamente 🦖💜');
 });
 
-$document.querySelectorAll('[data-install-app]').forEach((button) => {
+document.querySelectorAll('[data-install-app]').forEach((button) => {
   button.onclick = openInstallDialog;
 });
 $('#closeInstallDialogBtn').onclick = () => $('#installDialog').close();
