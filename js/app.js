@@ -5,7 +5,12 @@ import {
   logout,
   resetPassword,
   getProfile,
+  getPairForUser,
+  createPairInvite,
+  acceptPairInvite,
   listCoupons,
+  listSentCoupons,
+  listAllCoupons,
   createCoupon,
   setCouponProgress,
   deleteCoupon,
@@ -13,6 +18,7 @@ import {
   listMural,
   uploadMural,
   listMessages,
+  listPairMessages,
   sendMessage,
   markMessageRead,
   listUsers,
@@ -28,7 +34,13 @@ let profile = null;
 let coupons = [];
 let mural = [];
 let messages = [];
+let pairMessages = [];
+let sentCoupons = [];
+let adminCoupons = [];
 let users = [];
+let currentPair = null;
+let partnerUid = null;
+let partnerName = '';
 let filter = 'active';
 let localDemoMedia = [];
 const screens = ['#introScreen', '#letterScreen', '#authScreen', '#appScreen'];
@@ -366,10 +378,18 @@ async function enterApp(user) {
 }
 
 async function refreshAll() {
-  [coupons, mural, messages] = await Promise.all([
+  currentPair = await getPairForUser(currentUser.uid);
+  partnerUid = currentPair?.memberUids?.find((uid) => uid !== currentUser.uid) || null;
+  partnerName = partnerUid
+    ? (currentPair?.memberNames?.[partnerUid] || 'Tu persona favorita')
+    : '';
+
+  [coupons, mural, messages, sentCoupons, pairMessages] = await Promise.all([
     listCoupons(currentUser.uid),
     listMural(),
-    listMessages(currentUser.uid)
+    listMessages(currentUser.uid),
+    currentPair ? listSentCoupons(currentUser.uid) : Promise.resolve([]),
+    currentPair ? listPairMessages(currentPair.id) : Promise.resolve([])
   ]);
 
   if (localDemoMedia.length) mural.unshift(...localDemoMedia);
@@ -379,9 +399,10 @@ async function refreshAll() {
   renderMessages();
   renderHero();
   renderSummary();
+  renderPairWorkspace();
 
   if (profile.role === 'admin') {
-    users = await listUsers();
+    [users, adminCoupons] = await Promise.all([listUsers(), listAllCoupons()]);
     renderAdminUsers();
     renderRecipients();
     renderAdminMedia();
@@ -398,7 +419,7 @@ function renderSummary() {
 
 function renderAdminSummary() {
   if (profile?.role !== 'admin') return;
-  $('#adminTotalCoupons').textContent = coupons.length;
+  $('#adminTotalCoupons').textContent = adminCoupons.length;
   $('#adminUnreadMessages').textContent = messages.filter(m=>!m.read).length;
   $('#adminTotalMemories').textContent = mural.length;
 }
