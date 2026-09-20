@@ -8,6 +8,7 @@ import {
   getPairForUser,
   createPairInvite,
   acceptPairInvite,
+  unlinkPair,
   listCoupons,
   listSentCoupons,
   listAllCoupons,
@@ -386,14 +387,19 @@ async function refreshAll() {
     : '';
 
   [coupons, mural, messages, sentCoupons, pairMessages] = await Promise.all([
-    listCoupons(currentUser.uid),
+    listCoupons(currentUser.uid, currentPair?.id || null),
     listMural(currentUser.uid, currentPair?.id || null),
-    listMessages(currentUser.uid),
-    currentPair ? listSentCoupons(currentUser.uid) : Promise.resolve([]),
+    listMessages(currentUser.uid, currentPair?.id || null),
+    currentPair ? listSentCoupons(currentUser.uid, currentPair.id) : Promise.resolve([]),
     currentPair ? listPairMessages(currentPair.id) : Promise.resolve([])
   ]);
 
-  if (localDemoMedia.length) mural.unshift(...localDemoMedia);
+  if (localDemoMedia.length) {
+    const visibleDemoMedia = localDemoMedia.filter((item) => item.pairId
+      ? item.pairId === currentPair?.id
+      : !currentPair && item.userId === currentUser.uid);
+    mural.unshift(...visibleDemoMedia);
+  }
 
   renderCoupons();
   renderMural();
@@ -588,6 +594,42 @@ $('#pairCouponForm').onsubmit = async (event) => {
   }
 };
 
+$('#unlinkPairBtn').onclick = async () => {
+  if (!currentPair) return toast('No hay un DinoDúo activo.');
+
+  const partner = partnerName || 'tu persona';
+  const confirmed = safeConfirm(
+    '¿Deseas desvincularte de ' + partner + '?\n\n' +
+    'El DinoDúo actual se cerrará. Los cupones, mensajes y recuerdos compartidos quedarán archivados y no se mezclarán con un vínculo nuevo.'
+  );
+  if (!confirmed) return;
+
+  const button = $('#unlinkPairBtn');
+  button.disabled = true;
+  button.textContent = 'Desvinculando...';
+  try {
+    await unlinkPair({ pairId: currentPair.id, uid: currentUser.uid });
+    currentPair = null;
+    partnerUid = null;
+    partnerName = '';
+    pairMessages = [];
+    sentCoupons = [];
+    couponView = 'received';
+    $('[data-coupon-view]').forEach((item) => {
+      item.classList.toggle('is-active', item.dataset.couponView === 'received');
+    });
+    await refreshAll();
+    playChime('soft');
+    toast('DinoDúo cerrado. Tu cuenta ya puede vincularse de nuevo.');
+  } catch (error) {
+    console.error(error);
+    toast(error?.message || 'No se pudo cerrar el DinoDúo.');
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Desvincular DinoDúo';
+  }
+};
+
 $('#pairMessageForm').onsubmit = async (event) => {
   event.preventDefault();
   if (!currentPair || !partnerUid) return toast('Primero vincula las dos cuentas.');
@@ -758,7 +800,7 @@ function openCoupon(id, source = 'received') {
     const origin = document.querySelector(`[data-id="${coupon.id}"]`);
     await setCouponProgress(currentUser.uid, coupon.id, nextStatus);
     $('#couponDialog').close();
-    coupons = await listCoupons(currentUser.uid);
+    coupons = await listCoupons(currentUser.uid, currentPair?.id || null);
     renderCoupons();
     renderHero();
     renderSummary();
@@ -825,7 +867,12 @@ $('#uploadForm').onsubmit = async (event) => {
 
     if (!firebaseReady) localDemoMedia.unshift(item);
     mural = await listMural(currentUser.uid, currentPair?.id || null);
-    if (!firebaseReady) mural.unshift(...localDemoMedia);
+    if (!firebaseReady) {
+      const visibleDemoMedia = localDemoMedia.filter((entry) => entry.pairId
+        ? entry.pairId === currentPair?.id
+        : !currentPair && entry.userId === currentUser.uid);
+      mural.unshift(...visibleDemoMedia);
+    }
     renderMural();
     if (profile.role === 'admin') {
       adminMural = await listAllMural();
