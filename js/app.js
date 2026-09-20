@@ -975,7 +975,7 @@ document.querySelectorAll('[data-scroll-pair]').forEach((button) => {
 document.querySelectorAll('.tab-btn').forEach((button) => {
   button.onclick = () => {
     const tab = button.dataset.tab;
-    $document.querySelectorAll('.tab-btn').forEach((item) => item.classList.toggle('is-active', item === button));
+    document.querySelectorAll('.tab-btn').forEach((item) => item.classList.toggle('is-active', item === button));
     $$('.tab-panel').forEach((panel) => panel.classList.remove('is-active'));
     $(`#${tab}Tab`).classList.add('is-active');
   };
