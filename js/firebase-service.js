@@ -266,20 +266,44 @@ export async function resetCoupon(couponId){
   return true;
 }
 
-export async function listMural(){
+export async function listMural(uid,pairId=null){
   if(!configured) return [];
-  const snap=await fsMod.getDocs(fsMod.query(fsMod.collection(db,'mural'),fsMod.orderBy('createdAt','desc')));
-  return snap.docs.map(d=>({id:d.id,...d.data(),createdAt:asDate(d.data().createdAt)}));
+  const base=fsMod.collection(db,'mural');
+  const snap=pairId
+    ? await fsMod.getDocs(fsMod.query(base,fsMod.where('pairId','==',pairId)))
+    : await fsMod.getDocs(fsMod.query(base,fsMod.where('userId','==',uid)));
+  return sortNewest(snap.docs.map(d=>({id:d.id,...d.data(),createdAt:asDate(d.data().createdAt)})));
 }
-export async function uploadMural({uid,couponId,caption,file}){
-  if(!configured) return {id:'local-'+Date.now(),userId:uid,couponId,caption,type:file.type.startsWith('video/')?'video':'image',localUrl:URL.createObjectURL(file),createdAt:new Date(),fileName:file.name};
+
+export async function listAllMural(){
+  if(!configured) return [];
+  const snap=await fsMod.getDocs(fsMod.collection(db,'mural'));
+  return sortNewest(snap.docs.map(d=>({id:d.id,...d.data(),createdAt:asDate(d.data().createdAt)})));
+}
+
+export async function uploadMural({uid,pairId=null,uploaderName='',couponId,caption,file}){
+  if(!configured) return {
+    id:'local-'+Date.now(),
+    userId:uid,
+    pairId,
+    uploaderName,
+    couponId,
+    caption,
+    type:file.type.startsWith('video/')?'video':'image',
+    localUrl:URL.createObjectURL(file),
+    createdAt:new Date(),
+    fileName:file.name
+  };
   const clean=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
-  const path='mural/'+uid+'/'+Date.now()+'_'+clean;
+  const scope=pairId||uid;
+  const path='mural/'+scope+'/'+uid+'/'+Date.now()+'_'+clean;
   const r=stMod.ref(storage,path);
   await stMod.uploadBytes(r,file,{contentType:file.type});
   const mediaUrl=await stMod.getDownloadURL(r);
-  const docRef=await fsMod.addDoc(fsMod.collection(db,'mural'),{
+  const data={
     userId:uid,
+    pairId:pairId||null,
+    uploaderName:uploaderName||'',
     couponId:couponId||null,
     caption:caption||'',
     type:file.type.startsWith('video/')?'video':'image',
@@ -287,8 +311,9 @@ export async function uploadMural({uid,couponId,caption,file}){
     mediaPath:path,
     fileName:file.name,
     createdAt:fsMod.serverTimestamp()
-  });
-  return {id:docRef.id,userId:uid,couponId,caption,type:file.type.startsWith('video/')?'video':'image',mediaUrl,mediaPath:path,fileName:file.name,createdAt:new Date()};
+  };
+  const docRef=await fsMod.addDoc(fsMod.collection(db,'mural'),data);
+  return {...data,id:docRef.id,createdAt:new Date()};
 }
 
 export async function listMessages(uid){
