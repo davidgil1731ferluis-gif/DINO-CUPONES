@@ -7,18 +7,41 @@ import {
 } from './integrations-config.js';
 
 const V = '12.19.0';
-const appMod = await import('https://www.gstatic.com/firebasejs/' + V + '/firebase-app.js');
-const authMod = await import('https://www.gstatic.com/firebasejs/' + V + '/firebase-auth.js');
-const fsMod = await import('https://www.gstatic.com/firebasejs/' + V + '/firebase-firestore.js');
 const configured = firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('TU_');
 
-let app = null, auth = null, db = null;
+let appMod = null;
+let authMod = null;
+let fsMod = null;
+let app = null;
+let auth = null;
+let db = null;
+let firebaseInitPromise = null;
 let oneSignalPromise = null;
 
-if (configured) {
-  app = appMod.initializeApp(firebaseConfig);
-  auth = authMod.getAuth(app);
-  db = fsMod.getFirestore(app);
+async function ensureFirebase() {
+  if (!configured) return false;
+  if (app && auth && db && appMod && authMod && fsMod) return true;
+  if (firebaseInitPromise) return firebaseInitPromise;
+
+  firebaseInitPromise = Promise.all([
+    import('https://www.gstatic.com/firebasejs/' + V + '/firebase-app.js'),
+    import('https://www.gstatic.com/firebasejs/' + V + '/firebase-auth.js'),
+    import('https://www.gstatic.com/firebasejs/' + V + '/firebase-firestore.js')
+  ]).then(([appSdk, authSdk, firestoreSdk]) => {
+    appMod = appSdk;
+    authMod = authSdk;
+    fsMod = firestoreSdk;
+    app = appMod.initializeApp(firebaseConfig);
+    auth = authMod.getAuth(app);
+    db = fsMod.getFirestore(app);
+    return true;
+  }).catch((error) => {
+    firebaseInitPromise = null;
+    console.error('Firebase no pudo inicializarse.', error);
+    throw error;
+  });
+
+  return firebaseInitPromise;
 }
 
 const demoNow = Date.now();
@@ -84,7 +107,9 @@ export const mediaReady = configured && cloudinaryReady && workerReady;
 export const pushReady = configured && oneSignalReady && workerReady;
 
 async function currentIdToken() {
-  if (!configured || !auth?.currentUser) throw new Error('Debes iniciar sesión.');
+  if (!configured) throw new Error('Firebase no está configurado.');
+  await ensureFirebase();
+  if (!auth?.currentUser) throw new Error('Debes iniciar sesión.');
   return auth.currentUser.getIdToken();
 }
 
@@ -136,6 +161,7 @@ async function getOneSignal() {
 }
 
 export async function identifyPushUser(uid) {
+  if(configured) await ensureFirebase();
   if (!configured || !oneSignalReady || !uid) return false;
   const OneSignal = await getOneSignal();
   if (!OneSignal) return false;
@@ -144,6 +170,7 @@ export async function identifyPushUser(uid) {
 }
 
 export async function clearPushUser() {
+  if(configured) await ensureFirebase();
   if (!oneSignalReady) return;
   try {
     const OneSignal = await getOneSignal();
@@ -186,9 +213,26 @@ function randomCode() {
 
 export function onAuth(callback){
   if(!configured){setTimeout(()=>callback({uid:'demo-user',email:'demo@dinocupones.app'}),0);return()=>{};}
-  return authMod.onAuthStateChanged(auth,callback);
+  let unsubscribe=()=>{};
+  let cancelled=false;
+
+  ensureFirebase()
+    .then(()=>{
+      if(cancelled) return;
+      unsubscribe=authMod.onAuthStateChanged(auth,callback);
+    })
+    .catch((error)=>{
+      console.error('No se pudo iniciar Firebase Authentication.',error);
+      window.dispatchEvent(new CustomEvent('dinocupones:firebase-error',{detail:error}));
+    });
+
+  return ()=>{
+    cancelled=true;
+    unsubscribe();
+  };
 }
 export async function login(email,password){
+  if(configured) await ensureFirebase();
   if(!configured) {
     const normalizedEmail=String(email||'').trim().toLowerCase();
 
@@ -209,6 +253,7 @@ export async function login(email,password){
 }
 
 export async function registerAccount({displayName,email,password}){
+  if(configured) await ensureFirebase();
   const cleanName=String(displayName||'').trim();
   const cleanEmail=String(email||'').trim().toLowerCase();
 
@@ -257,13 +302,19 @@ export async function registerAccount({displayName,email,password}){
   return credential;
 }
 
-export async function logout(){if(configured) return authMod.signOut(auth);}
+export async function logout(){
+  if(!configured) return;
+  await ensureFirebase();
+  return authMod.signOut(auth);
+}
 export async function resetPassword(email){
+  if(configured) await ensureFirebase();
   if(!configured) return true;
   return authMod.sendPasswordResetEmail(auth,email);
 }
 
 export async function getProfile(uid){
+  if(configured) await ensureFirebase();
   if(!configured) {
     if (uid === 'demo-love') return {uid,displayName:'Mi persona favorita',email:'amor@dinocupones.app',role:'user'};
     if (uid === 'demo-user') return {uid,displayName:'Dino',email:'demo@dinocupones.app',role:'admin'};
@@ -276,6 +327,7 @@ export async function getProfile(uid){
 }
 
 export async function getPairForUser(uid) {
+  if(configured) await ensureFirebase();
   if (!configured) return demoPair.active && demoPair.memberUids.includes(uid) ? {...demoPair} : null;
   const snap = await fsMod.getDocs(
     fsMod.query(fsMod.collection(db,'pairs'), fsMod.where('memberUids','array-contains',uid))
@@ -288,6 +340,7 @@ export async function getPairForUser(uid) {
 }
 
 export async function createPairInvite({uid,displayName}) {
+  if(configured) await ensureFirebase();
   const activePair = await getPairForUser(uid);
   if (activePair) throw new Error('Primero debes cerrar tu DinoDúo actual.');
 
@@ -314,6 +367,7 @@ export async function createPairInvite({uid,displayName}) {
 }
 
 export async function acceptPairInvite({uid,displayName,code}) {
+  if(configured) await ensureFirebase();
   const cleanCode = String(code||'').trim().toUpperCase();
   if (!cleanCode) throw new Error('Código vacío.');
 
@@ -370,6 +424,7 @@ export async function acceptPairInvite({uid,displayName,code}) {
 }
 
 export async function unlinkPair({pairId,uid}) {
+  if(configured) await ensureFirebase();
   if (!pairId || !uid) throw new Error('No hay un DinoDúo activo.');
 
   if (!configured) {
@@ -400,6 +455,7 @@ export async function unlinkPair({pairId,uid}) {
 }
 
 export async function listCoupons(uid,activePairId=null){
+  if(configured) await ensureFirebase();
   if(!configured) {
     return sortNewest(demoCoupons
       .filter(c=>c.assignedToUid===uid && (!c.pairId || c.pairId===activePairId))
@@ -429,6 +485,7 @@ export async function listCoupons(uid,activePairId=null){
 }
 
 export async function listSentCoupons(uid,activePairId=null){
+  if(configured) await ensureFirebase();
   if(!configured) {
     return sortNewest(demoCoupons
       .filter(c=>c.createdByUid===uid && (!c.pairId || c.pairId===activePairId))
@@ -458,12 +515,14 @@ export async function listSentCoupons(uid,activePairId=null){
 }
 
 export async function listAllCoupons(){
+  if(configured) await ensureFirebase();
   if(!configured) return sortNewest(demoCoupons.map(c=>normalizeCoupon(c,c.id)));
   const snap=await fsMod.getDocs(fsMod.collection(db,'coupons'));
   return sortNewest(snap.docs.map(d=>normalizeCoupon(d.data(),d.id)));
 }
 
 export async function createCoupon(payload){
+  if(configured) await ensureFirebase();
   const normalized = {
     ...payload,
     createdByUid: payload.createdByUid || payload.createdBy,
@@ -493,6 +552,7 @@ export async function createCoupon(payload){
 }
 
 export async function setCouponProgress(uid,couponId,status){
+  if(configured) await ensureFirebase();
   if(!configured){
     const c=demoCoupons.find(x=>x.id===couponId && x.assignedToUid===uid);
     if(c)c.status=status;
@@ -512,6 +572,7 @@ export async function setCouponProgress(uid,couponId,status){
 }
 
 export async function deleteCoupon(couponId){
+  if(configured) await ensureFirebase();
   if(!configured){
     const idx=demoCoupons.findIndex(x=>x.id===couponId);
     if(idx>=0) demoCoupons.splice(idx,1);
@@ -525,6 +586,7 @@ export async function deleteCoupon(couponId){
   return true;
 }
 export async function resetCoupon(couponId){
+  if(configured) await ensureFirebase();
   if(!configured){
     const c=demoCoupons.find(x=>x.id===couponId);
     if(c)c.status='active';
@@ -539,6 +601,7 @@ export async function resetCoupon(couponId){
 }
 
 export async function listMural(uid,pairId=null){
+  if(configured) await ensureFirebase();
   if(!configured) return [];
   const base=fsMod.collection(db,'mural');
   const snap=pairId
@@ -552,12 +615,14 @@ export async function listMural(uid,pairId=null){
 }
 
 export async function listAllMural(){
+  if(configured) await ensureFirebase();
   if(!configured) return [];
   const snap=await fsMod.getDocs(fsMod.collection(db,'mural'));
   return sortNewest(snap.docs.map(d=>({id:d.id,...d.data(),createdAt:asDate(d.data().createdAt)})));
 }
 
 export async function uploadMural({uid,pairId=null,uploaderName='',couponId,caption,file}){
+  if(configured) await ensureFirebase();
   if(!configured) return {
     id:'local-'+Date.now(),
     userId:uid,
@@ -628,6 +693,7 @@ export async function uploadMural({uid,pairId=null,uploaderName='',couponId,capt
 }
 
 export async function listMessages(uid,activePairId=null){
+  if(configured) await ensureFirebase();
   if(!configured) return sortNewest(demoMessages
     .filter(m=>(m.targetUid===uid||m.targetUid==='all') && (!m.pairId || m.pairId===activePairId))
     .map(m=>({...m})));
@@ -669,6 +735,7 @@ export async function listMessages(uid,activePairId=null){
 }
 
 export async function listPairMessages(pairId){
+  if(configured) await ensureFirebase();
   if(!pairId) return [];
   if(!configured) return sortNewest(demoMessages.filter(m=>m.pairId===pairId).map(m=>({...m}))).reverse();
   const snap=await fsMod.getDocs(
@@ -680,6 +747,7 @@ export async function listPairMessages(pairId){
 }
 
 export async function sendMessage(payload){
+  if(configured) await ensureFirebase();
   if(!configured){
     const item={id:'m-'+Date.now(),...payload,createdAt:new Date(),read:false};
     demoMessages.push(item);
@@ -697,6 +765,7 @@ export async function sendMessage(payload){
   return {id:ref.id,...payload,createdAt:new Date()};
 }
 export async function markMessageRead(id){
+  if(configured) await ensureFirebase();
   if(configured){
     const uid=auth.currentUser?.uid;
     if(!uid)return;
@@ -707,6 +776,7 @@ export async function markMessageRead(id){
 }
 
 export async function listUsers(){
+  if(configured) await ensureFirebase();
   if(!configured) return [
     {uid:'demo-user',displayName:'Dino',email:'demo@dinocupones.app',role:'admin'},
     {uid:'demo-love',displayName:'Mi persona favorita',email:'amor@dinocupones.app',role:'user'},
@@ -717,6 +787,7 @@ export async function listUsers(){
 }
 
 export async function requestPushPermission(uid){
+  if(configured) await ensureFirebase();
   if(!configured || !oneSignalReady || !uid) return false;
   if(Notification.permission==='denied') return false;
 
