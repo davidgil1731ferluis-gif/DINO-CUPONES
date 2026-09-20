@@ -7,6 +7,7 @@ import {
   registerAccount,
   logout,
   resetPassword,
+  deleteCurrentAccount,
   getProfile,
   getPairForUser,
   createPairInvite,
@@ -22,6 +23,7 @@ import {
   listMural,
   listAllMural,
   uploadMural,
+  deleteMural,
   listMessages,
   listPairMessages,
   sendMessage,
@@ -323,7 +325,7 @@ function resetSessionState() {
   couponView = 'received';
   $$('.chip').forEach((item) => item.classList.toggle('is-active', item.dataset.filter === 'active'));
   $$('[data-coupon-view]').forEach((item) => item.classList.toggle('is-active', item.dataset.couponView === 'received'));
-  ['#couponDialog','#uploadDialog','#muralViewerDialog','#installDialog'].forEach((selector) => {
+  ['#couponDialog','#uploadDialog','#muralViewerDialog','#installDialog','#accountDialog'].forEach((selector) => {
     const dialog = $(selector);
     if (dialog?.open) dialog.close();
   });
@@ -576,6 +578,57 @@ $('#logoutBtn').onclick = async () => {
   }
 };
 
+$('#accountSettingsBtn').onclick = () => {
+  $('#deleteAccountPassword').value = '';
+  $('#currentAccountEmail').textContent = profile?.email || currentUser?.email || 'Sin correo';
+  $('#accountDialog').showModal();
+};
+
+$('#closeAccountDialogBtn').onclick = () => $('#accountDialog').close();
+
+$('#sendMyResetBtn').onclick = async () => {
+  const email = profile?.email || currentUser?.email;
+  if (!email) return toast('No se encontró el correo de la cuenta.');
+  const button = $('#sendMyResetBtn');
+  setButtonBusy(button, true, 'Enviando...');
+  try {
+    await resetPassword(email);
+    toast('Enlace de cambio de contraseña enviado.');
+  } catch (error) {
+    console.error(error);
+    toast(humanAuthError(error));
+  } finally {
+    setButtonBusy(button, false);
+  }
+};
+
+$('#deleteMyAccountBtn').onclick = async () => {
+  const password = $('#deleteAccountPassword').value;
+  if (!password) return toast('Escribe tu contraseña actual para confirmar.');
+  const confirmed = safeConfirm(
+    '¿Eliminar definitivamente tu cuenta?\n\n' +
+    'Se cerrará tu DinoDúo activo y perderás el acceso a esta cuenta. Esta acción no se puede deshacer.'
+  );
+  if (!confirmed) return;
+
+  const button = $('#deleteMyAccountBtn');
+  setButtonBusy(button, true, 'Eliminando...');
+  try {
+    await clearPushUser();
+    await deleteCurrentAccount(password);
+    $('#accountDialog').close();
+    resetSessionState();
+    showScreen('#authScreen');
+    toast('Tu cuenta fue eliminada.');
+  } catch (error) {
+    console.error(error);
+    toast(humanAuthError(error));
+  } finally {
+    setButtonBusy(button, false);
+    $('#deleteAccountPassword').value = '';
+  }
+};
+
 function humanAuthError(error) {
   const code = error?.code || '';
   if (code.includes('invalid-credential') || code.includes('wrong-password') || code.includes('user-not-found')) return 'Usuario o contraseña incorrectos.';
@@ -584,6 +637,7 @@ function humanAuthError(error) {
   if (code.includes('invalid-email')) return 'Escribe un correo válido.';
   if (code.includes('invalid-display-name')) return 'Escribe un nombre válido.';
   if (code.includes('too-many-requests')) return 'Demasiados intentos. Intenta más tarde.';
+  if (code.includes('requires-recent-login')) return 'Por seguridad, vuelve a iniciar sesión antes de eliminar tu cuenta.';
   if (code.includes('operation-not-allowed')) return 'Activa Correo/Contraseña en Firebase Authentication.';
   if (code.includes('permission-denied')) return 'Firestore rechazó la operación. Revisa que la base de datos y sus reglas estén publicadas.';
   if (code.includes('failed-precondition')) return 'Firebase todavía necesita una configuración adicional en este proyecto.';
@@ -607,6 +661,7 @@ async function enterApp(user) {
   $('#userName').textContent = profile.displayName || 'Dino';
   $('#userRole').textContent = profile.role === 'admin' ? 'Administrador' : 'Invitado especial';
   $('#userAvatar').textContent = (profile.displayName || 'D')[0].toUpperCase();
+  $('#currentAccountEmail').textContent = profile.email || user.email || 'Sin correo';
   const isAdmin = profile.role === 'admin';
   $('#adminTabBtn').hidden = !isAdmin;
   $('.tabbar').classList.toggle('has-admin', isAdmin);
@@ -907,7 +962,17 @@ $('#pairMessageForm').onsubmit = async (event) => {
   }
 };
 
-$$('.tab-btn').forEach((button) => {
+$('[data-scroll-pair]').forEach((button) => {
+  button.onclick = () => {
+    const target = $(button.dataset.scrollPair);
+    if (!target) return;
+    target.scrollIntoView({behavior:'smooth',block:'start'});
+    target.classList.add('pair-focus-card');
+    window.setTimeout(() => target.classList.remove('pair-focus-card'), 900);
+  };
+});
+
+$('.tab-btn').forEach((button) => {
   button.onclick = () => {
     const tab = button.dataset.tab;
     $$('.tab-btn').forEach((item) => item.classList.toggle('is-active', item === button));
@@ -1164,12 +1229,15 @@ function renderMural() {
           <p>${escapeHtml(item.caption || 'Un recuerdo sin título, pero con historia.')}</p>
           <small>${escapeHtml(owner)} · ${timeAgo(item.createdAt || new Date())}</small>
         </div>
+        ${item.userId === currentUser?.uid || profile?.role === 'admin'
+          ? `<button class="mural-delete-btn" data-delete-mural="${item.id}" type="button" aria-label="Eliminar recuerdo" title="Eliminar recuerdo">🗑</button>`
+          : ''}
       </article>`;
     }).join('')
     : `<div class="empty-state"><strong>El mural todavía está vacío.</strong>${currentPair ? 'La primera foto de ustedes puede empezar esta historia.' : 'Puedes guardar recuerdos privados mientras conectas tu DinoDúo.'}</div>`;
 
   observeReveals();
-  $$('[data-mural-id]').forEach((card) => {
+  $('[data-mural-id]').forEach((card) => {
     const open = () => openMuralViewer(card.dataset.muralId);
     card.onclick = (event) => {
       if (event.target.closest('button,a')) return;
@@ -1179,6 +1247,41 @@ function renderMural() {
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
         open();
+      }
+    };
+  });
+
+
+  $('[data-delete-mural]').forEach((button) => {
+    button.onclick = async (event) => {
+      event.stopPropagation();
+      const id = button.dataset.deleteMural;
+      const item = mural.find((entry) => entry.id === id) || adminMural.find((entry) => entry.id === id);
+      if (!item) return;
+      if (!safeConfirm('¿Eliminar este recuerdo definitivamente?')) return;
+
+      setButtonBusy(button, true, '…');
+      try {
+        if (!firebaseReady && item.localUrl) {
+          const idx = localDemoMedia.findIndex((entry) => entry.id === id);
+          if (idx >= 0) localDemoMedia.splice(idx, 1);
+        } else {
+          await deleteMural(id);
+        }
+
+        mural = mural.filter((entry) => entry.id !== id);
+        adminMural = adminMural.filter((entry) => entry.id !== id);
+        renderMural();
+        if (profile?.role === 'admin') {
+          renderAdminMedia();
+          renderAdminSummary();
+        }
+        toast('Recuerdo eliminado.');
+      } catch (error) {
+        console.error(error);
+        toast(error?.message || 'No se pudo eliminar el recuerdo.');
+      } finally {
+        setButtonBusy(button, false);
       }
     };
   });
@@ -1377,7 +1480,7 @@ function renderAdminUsers() {
         <strong>${escapeHtml(user.displayName || 'Sin nombre')}</strong>
         <small>${escapeHtml(user.email || user.uid)} · ${user.role || 'user'}</small>
       </div>
-      <button class="mini-btn" data-reset-email="${escapeHtml(user.email || '')}" type="button">Restablecer</button>
+      <button class="mini-btn" data-reset-email="${escapeHtml(user.email || '')}" type="button">Enviar enlace</button>
     </div>`).join('');
 
   $$('[data-reset-email]').forEach((button) => {
@@ -1402,11 +1505,36 @@ function renderAdminMedia() {
           <strong>${escapeHtml(item.fileName || 'Recuerdo')}</strong>
           <small>${item.type || 'archivo'} · ${timeAgo(item.createdAt || new Date())}</small>
         </div>
-        ${item.mediaUrl
-          ? `<a class="mini-btn" href="${item.mediaUrl}" target="_blank" rel="noopener">Descargar</a>`
-          : '<span class="mini-btn">Demo</span>'}
+        <div class="admin-actions-inline">
+          ${item.mediaUrl
+            ? `<a class="mini-btn" href="${item.mediaUrl}" target="_blank" rel="noopener">Descargar</a>`
+            : '<span class="mini-btn">Demo</span>'}
+          <button class="mini-btn danger-mini" data-admin-delete-mural="${item.id}" type="button">Eliminar</button>
+        </div>
       </div>`).join('')
     : '<div class="empty-state"><strong>Sin archivos.</strong></div>';
+
+  $('[data-admin-delete-mural]').forEach((button) => {
+    button.onclick = async () => {
+      const id = button.dataset.adminDeleteMural;
+      if (!safeConfirm('¿Eliminar este recuerdo y su archivo original?')) return;
+      setButtonBusy(button, true, '…');
+      try {
+        await deleteMural(id);
+        adminMural = adminMural.filter((entry) => entry.id !== id);
+        mural = mural.filter((entry) => entry.id !== id);
+        renderAdminMedia();
+        renderMural();
+        renderAdminSummary();
+        toast('Recuerdo eliminado.');
+      } catch (error) {
+        console.error(error);
+        toast(error?.message || 'No se pudo eliminar el recuerdo.');
+      } finally {
+        setButtonBusy(button, false);
+      }
+    };
+  });
 }
 
 function renderAdminCoupons() {
