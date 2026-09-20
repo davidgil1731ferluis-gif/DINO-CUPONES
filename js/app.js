@@ -30,6 +30,7 @@ import {
   markMessageRead,
   listUsers,
   requestPushPermission,
+  getPushStatus,
   identifyPushUser,
   clearPushUser,
   onForegroundMessage
@@ -1044,7 +1045,7 @@ $('#pairCouponForm').onsubmit = async (event) => {
   const submitter = submitButton(event);
   setButtonBusy(submitter, true);
   try {
-    await createCoupon({
+    const created = await createCoupon({
       pairId: currentPair.id,
       createdByUid: currentUser.uid,
       createdByName: profile?.displayName || 'Dino',
@@ -1057,7 +1058,13 @@ $('#pairCouponForm').onsubmit = async (event) => {
     event.target.reset();
     await refreshAll();
     playChime('complete');
-    toast('DinoCupón enviado a ' + partnerName + ' 🎟️');
+    if (created?.push?.ok === false && created?.push?.reason === 'NO_SUBSCRIBED_DEVICE') {
+      toast('DinoCupón guardado, pero ' + partnerName + ' todavía no tiene un dispositivo suscrito a notificaciones.');
+    } else if (created?.push?.ok === false) {
+      toast('DinoCupón guardado. La notificación push no pudo confirmarse.');
+    } else {
+      toast('DinoCupón enviado a ' + partnerName + ' 🎟️');
+    }
   } catch (error) {
     console.error(error);
     toast('No se pudo enviar el cupón.');
@@ -1117,7 +1124,7 @@ $('#pairMessageForm').onsubmit = async (event) => {
   const submitter = submitButton(event);
   setButtonBusy(submitter, true);
   try {
-    await sendMessage({
+    const sent = await sendMessage({
       pairId: currentPair.id,
       senderUid: currentUser.uid,
       senderName: profile?.displayName || 'Dino',
@@ -1136,7 +1143,13 @@ $('#pairMessageForm').onsubmit = async (event) => {
     }
 
     playChime('soft');
-    toast('Mensaje enviado a ' + partnerName + '.');
+    if (sent?.push?.ok === false && sent?.push?.reason === 'NO_SUBSCRIBED_DEVICE') {
+      toast('Mensaje guardado, pero ' + partnerName + ' todavía no tiene un dispositivo suscrito a notificaciones.');
+    } else if (sent?.push?.ok === false) {
+      toast('Mensaje guardado. La notificación push no pudo confirmarse.');
+    } else {
+      toast('Mensaje enviado a ' + partnerName + ' con notificación 💌');
+    }
   } catch (error) {
     console.error(error);
     toast('No se pudo enviar el mensaje.');
@@ -1494,47 +1507,102 @@ $('#closeMuralViewerBtn').onclick = () => {
 function renderNotificationPermissionState() {
   const button = $('#enableNotificationsBtn');
   const label = $('#notificationPermissionText');
+  const status = $('#pushSubscriptionStatus');
   if (!button || !label) return;
 
   if (!firebaseReady) {
     button.disabled = true;
     button.textContent = 'Demo';
     label.textContent = 'Se activará cuando conectemos Firebase.';
+    if (status) status.textContent = 'Sin conexión real.';
     return;
   }
   if (!pushReady) {
     button.disabled = true;
     button.textContent = 'Pendiente';
     label.textContent = 'Falta completar la configuración de OneSignal y Cloudflare.';
+    if (status) status.textContent = 'OneSignal no está listo.';
     return;
   }
   if (isIosDevice() && !isStandaloneApp()) {
     button.disabled = false;
     button.textContent = 'Instalar primero';
     label.textContent = 'En iPhone/iPad, instala DinoCupones en la pantalla de inicio antes de activar notificaciones.';
+    if (status) status.textContent = 'Web Push en iPhone requiere la PWA instalada.';
     return;
   }
   if (!('Notification' in window)) {
     button.disabled = true;
     button.textContent = 'No disponible';
     label.textContent = 'Este navegador no admite notificaciones web.';
-    return;
-  }
-  if (Notification.permission === 'granted') {
-    button.disabled = true;
-    button.textContent = 'Activas';
-    label.textContent = 'Recibirás nuevos cupones y mensajes.';
+    if (status) status.textContent = 'Push no soportado en este dispositivo.';
     return;
   }
   if (Notification.permission === 'denied') {
     button.disabled = true;
     button.textContent = 'Bloqueadas';
-    label.textContent = 'Debes habilitarlas desde los permisos del navegador.';
+    label.textContent = 'Debes habilitarlas desde los permisos del navegador o del sistema.';
+    if (status) status.textContent = 'Permiso del sistema: bloqueado.';
     return;
   }
+
+  if (Notification.permission === 'granted') {
+    button.disabled = false;
+    button.textContent = 'Verificando…';
+    label.textContent = 'Permiso concedido. Comprobando la suscripción real de OneSignal…';
+    if (status) status.textContent = 'Consultando suscripción…';
+    refreshPushSubscriptionState();
+    return;
+  }
+
   button.disabled = false;
   button.textContent = 'Activar';
-  label.textContent = 'Actívalas para recibir nuevos cupones y mensajes.';
+  label.textContent = 'Actívalas para recibir nuevos cupones y mensajes aunque DinoCupones esté cerrada.';
+  if (status) status.textContent = 'Este dispositivo todavía no está suscrito.';
+}
+
+let pushStatusCheck = null;
+async function refreshPushSubscriptionState() {
+  const button = $('#enableNotificationsBtn');
+  const label = $('#notificationPermissionText');
+  const status = $('#pushSubscriptionStatus');
+  if (!currentUser?.uid || !pushReady || !button || !label || !status) return;
+  if (pushStatusCheck) return pushStatusCheck;
+
+  pushStatusCheck = (async () => {
+    try {
+      const state = await getPushStatus(currentUser.uid);
+      if (state.ok) {
+        button.disabled = true;
+        button.textContent = 'Suscrito';
+        label.textContent = 'Este dispositivo recibirá mensajes y DinoCupones aunque la app esté cerrada.';
+        const shortId = state.subscriptionId
+          ? state.subscriptionId.slice(0, 8) + '…' + state.subscriptionId.slice(-6)
+          : 'registrada';
+        status.textContent = 'OneSignal: suscripción activa · ' + shortId;
+        status.classList.add('is-ok');
+        status.classList.remove('is-warning');
+      } else if (state.permission === 'granted') {
+        button.disabled = false;
+        button.textContent = 'Reparar';
+        label.textContent = 'El permiso está concedido, pero falta completar la suscripción OneSignal.';
+        status.textContent = 'OneSignal: dispositivo todavía no suscrito.';
+        status.classList.add('is-warning');
+        status.classList.remove('is-ok');
+      }
+    } catch (error) {
+      console.warn('No se pudo comprobar la suscripción push.', error);
+      button.disabled = false;
+      button.textContent = Notification.permission === 'granted' ? 'Reparar' : 'Activar';
+      status.textContent = 'No se pudo verificar OneSignal. Toca Reparar.';
+      status.classList.add('is-warning');
+      status.classList.remove('is-ok');
+    } finally {
+      pushStatusCheck = null;
+    }
+  })();
+
+  return pushStatusCheck;
 }
 
 $('#enableNotificationsBtn').onclick = async () => {
@@ -1545,7 +1613,10 @@ $('#enableNotificationsBtn').onclick = async () => {
   try {
     const enabled = await requestPushPermission(currentUser.uid);
     renderNotificationPermissionState();
-    toast(enabled ? 'Notificaciones activadas 💜' : 'No se activaron las notificaciones.');
+    await refreshPushSubscriptionState();
+    toast(enabled
+      ? 'Dispositivo suscrito a notificaciones 💜'
+      : 'El permiso puede estar activo, pero OneSignal todavía no terminó la suscripción. Pulsa Reparar.');
   } catch (error) {
     console.error(error);
     toast('No se pudieron activar las notificaciones.');
@@ -1559,6 +1630,10 @@ function toggleDrawer(open) {
   $('#notificationDrawer').classList.toggle('is-open', open);
   $('#drawerBackdrop').classList.toggle('is-open', open);
   $('#notificationDrawer').setAttribute('aria-hidden', String(!open));
+  if (open && currentUser?.uid) {
+    renderNotificationPermissionState();
+    refreshPushSubscriptionState();
+  }
 }
 
 function renderMessages() {
@@ -1600,7 +1675,7 @@ $('#couponForm').onsubmit = async (event) => {
     const recipient = users.find((user) => user.uid === recipientUid);
     if (!recipientUid) throw new Error('Selecciona un destinatario.');
 
-    await createCoupon({
+    const created = await createCoupon({
       pairId: currentPair?.memberUids?.includes(recipientUid) ? currentPair.id : null,
       createdByUid: currentUser.uid,
       createdByName: profile?.displayName || 'Administrador',
@@ -1612,7 +1687,9 @@ $('#couponForm').onsubmit = async (event) => {
     });
     event.target.reset();
     await refreshAll();
-    toast('Cupón enviado al destinatario.');
+    toast(created?.push?.ok === false
+      ? 'Cupón guardado, pero la notificación push no pudo confirmarse.'
+      : 'Cupón enviado al destinatario con notificación.');
   } catch (error) {
     console.error(error);
     toast(error?.message || 'No se pudo publicar el cupón.');
@@ -1627,7 +1704,7 @@ $('#messageForm').onsubmit = async (event) => {
   setButtonBusy(submitter, true);
   try {
     const targetUid = $('#messageRecipient').value;
-    await sendMessage({
+    const sent = await sendMessage({
       pairId: currentPair?.memberUids?.includes(targetUid) ? currentPair.id : null,
       senderUid: currentUser.uid,
       senderName: profile?.displayName || 'Administrador',
@@ -1639,7 +1716,9 @@ $('#messageForm').onsubmit = async (event) => {
     messages = await listMessages(currentUser.uid);
     renderMessages();
     playChime('soft');
-    toast('Mensaje enviado.');
+    toast(sent?.push?.ok === false
+      ? 'Mensaje guardado, pero la notificación push no pudo confirmarse.'
+      : 'Mensaje enviado con notificación.');
   } catch (error) {
     console.error(error);
     toast('No se pudo enviar el mensaje.');
