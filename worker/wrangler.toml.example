@@ -1,0 +1,17 @@
+name = "dinocupones-api"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+[vars]
+ALLOWED_ORIGIN = "https://davidgil1731ferluis-gif.github.io"
+APP_URL = "https://davidgil1731ferluis-gif.github.io/DINO-CUPONES/"
+CLOUDINARY_UPLOAD_PRESET = "dinocupones_signed"
+
+# FIREBASE_PROJECT_ID = "tu-project-id"
+# CLOUDINARY_CLOUD_NAME = "tu-cloud-name"
+# CLOUDINARY_API_KEY = "tu-api-key-publica"
+# ONESIGNAL_APP_ID = "tu-onesignal-app-id"
+
+# Secrets (NO poner valores aquí):
+# npx wrangler secret put CLOUDINARY_API_SECRET
+# npx wrangler secret put ONESIGNAL_API_KEY
