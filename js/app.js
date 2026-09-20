@@ -51,6 +51,7 @@ let users = [];
 let currentPair = null;
 let partnerUid = null;
 let partnerName = '';
+let pairSyncInFlight = false;
 let filter = 'active';
 let couponView = 'received';
 let localDemoMedia = [];
@@ -748,7 +749,20 @@ async function refreshAll(pairOverride = undefined) {
   renderPairWorkspace();
 
   if (profile.role === 'admin') {
-    [users, adminCoupons, adminMural] = await Promise.all([listUsers(), listAllCoupons(), listAllMural()]);
+    const [usersResult, couponsResult, muralResult] = await Promise.allSettled([
+      listUsers(),
+      listAllCoupons(),
+      listAllMural()
+    ]);
+
+    users = usersResult.status === 'fulfilled' ? usersResult.value : users;
+    adminCoupons = couponsResult.status === 'fulfilled' ? couponsResult.value : adminCoupons;
+    adminMural = muralResult.status === 'fulfilled' ? muralResult.value : adminMural;
+
+    if (usersResult.status === 'rejected') console.warn('No se pudo cargar la lista de usuarios.', usersResult.reason);
+    if (couponsResult.status === 'rejected') console.warn('No se pudo cargar el consolidado de cupones.', couponsResult.reason);
+    if (muralResult.status === 'rejected') console.warn('No se pudo cargar el consolidado del mural.', muralResult.reason);
+
     renderAdminUsers();
     renderRecipients();
     renderAdminMedia();
@@ -777,6 +791,52 @@ function renderHero() {
   $('#nextCouponTitle').textContent = active[0]?.title || 'Crear un nuevo recuerdo';
 }
 
+
+function showPairSuccess(message) {
+  const banner = $('#pairSuccessBanner');
+  const text = $('#pairSuccessText');
+  if (!banner || !text) return;
+  text.textContent = message || ('Ahora tú y ' + (partnerName || 'tu persona favorita') + ' están conectados.');
+  banner.hidden = false;
+  banner.classList.remove('is-popping');
+  requestAnimationFrame(() => banner.classList.add('is-popping'));
+}
+
+$('#dismissPairSuccessBtn').onclick = () => {
+  $('#pairSuccessBanner').hidden = true;
+};
+
+async function syncPairState({announce=false,full=false}={}) {
+  if (!currentUser?.uid || pairSyncInFlight) return;
+  pairSyncInFlight = true;
+  try {
+    const pair = await getPairForUser(currentUser.uid);
+    const previousId = currentPair?.id || null;
+    const nextId = pair?.id || null;
+
+    if (previousId !== nextId) {
+      currentPair = pair;
+      partnerUid = currentPair?.memberUids?.find((uid) => uid !== currentUser.uid) || null;
+      partnerName = partnerUid
+        ? (currentPair?.memberNames?.[partnerUid] || 'Tu persona favorita')
+        : '';
+      renderPairWorkspace();
+
+      if (pair && announce) {
+        showPairSuccess('Tu vínculo con ' + partnerName + ' ya está activo.');
+        playChime('complete');
+      }
+    }
+
+    if (full && pair) {
+      await refreshAll(pair);
+    }
+  } catch (error) {
+    console.warn('No se pudo sincronizar el DinoDúo todavía.', error);
+  } finally {
+    pairSyncInFlight = false;
+  }
+}
 
 function renderPairWorkspace() {
   const setup = $('#pairSetupView');
@@ -887,15 +947,27 @@ $('#pairAcceptForm').onsubmit = async (event) => {
   const submitter = submitButton(event);
   setButtonBusy(submitter, true);
   try {
-    await acceptPairInvite({
+    const pair = await acceptPairInvite({
       uid: currentUser.uid,
       displayName: profile?.displayName || 'Dino',
       code: $('#pairCodeInput').value
     });
+
+    currentPair = pair;
+    partnerUid = pair.memberUids?.find((uid) => uid !== currentUser.uid) || null;
+    partnerName = partnerUid
+      ? (pair.memberNames?.[partnerUid] || 'Tu persona favorita')
+      : 'Tu persona favorita';
+
     event.target.reset();
-    await refreshAll();
+    renderPairWorkspace();
+    showPairSuccess('Ahora tú y ' + partnerName + ' están conectados. Ya pueden enviarse mensajes y DinoCupones.');
     playChime('complete');
-    toast('DinoDúo conectado 💞');
+    toast('DinoDúo enlazado con éxito 💞');
+
+    // Cargamos el resto después de mostrar el éxito, para que una lectura secundaria
+    // nunca oculte que el vínculo sí se creó.
+    await refreshAll(pair);
   } catch (error) {
     console.error(error);
     toast(error?.message || 'No se pudo completar el vínculo.');
@@ -1011,8 +1083,11 @@ document.querySelectorAll('.tab-btn').forEach((button) => {
   button.onclick = () => {
     const tab = button.dataset.tab;
     document.querySelectorAll('.tab-btn').forEach((item) => item.classList.toggle('is-active', item === button));
-    $$('.tab-panel').forEach((panel) => panel.classList.remove('is-active'));
+    $('.tab-panel').forEach((panel) => panel.classList.remove('is-active'));
     $(`#${tab}Tab`).classList.add('is-active');
+    if (tab === 'pair') {
+      syncPairState({announce:true,full:true});
+    }
   };
 });
 
@@ -1498,14 +1573,72 @@ $('#messageForm').onsubmit = async (event) => {
 };
 
 function renderRecipients() {
-  const available = users.filter((user) => user.uid !== currentUser.uid);
-  $('#messageRecipient').innerHTML = '<option value="all">Todos</option>' + available
-    .map((user) => `<option value="${user.uid}">${escapeHtml(user.displayName || user.email || user.uid)}</option>`)
-    .join('');
+  const byUid = new Map(
+    users
+      .filter((user) => user?.uid && user.uid !== currentUser.uid)
+      .map((user) => [user.uid, user])
+  );
 
-  $('#couponRecipient').innerHTML = '<option value="">Selecciona una persona</option>' + available
-    .map((user) => `<option value="${user.uid}">${escapeHtml(user.displayName || user.email || user.uid)}</option>`)
-    .join('');
+  // Si la consulta administrativa tarda o algún documento todavía no aparece,
+  // el DinoDúo activo sigue siendo un destinatario válido.
+  if (partnerUid && !byUid.has(partnerUid)) {
+    byUid.set(partnerUid, {
+      uid: partnerUid,
+      displayName: partnerName || 'Tu persona favorita',
+      email: ''
+    });
+  }
+
+  const available = [...byUid.values()].sort((a,b) =>
+    String(a.displayName || a.email || '').localeCompare(String(b.displayName || b.email || ''), 'es')
+  );
+
+  const optionLabel = (user) => {
+    const name = user.displayName || 'Usuario';
+    return user.email ? name + ' — ' + user.email : name;
+  };
+
+  const couponSelect = $('#couponRecipient');
+  const messageSelect = $('#messageRecipient');
+  const couponHint = $('#couponRecipientHint');
+  const messageHint = $('#messageRecipientHint');
+
+  if (!available.length) {
+    couponSelect.innerHTML = '<option value="" selected disabled>No hay otros usuarios disponibles</option>';
+    messageSelect.innerHTML = '<option value="" selected disabled>No hay otros usuarios disponibles</option>';
+    couponSelect.disabled = true;
+    messageSelect.disabled = true;
+    couponHint.textContent = 'Crea o vincula otra cuenta para poder seleccionar un destinatario.';
+    messageHint.textContent = 'Crea o vincula otra cuenta para poder seleccionar un destinatario.';
+    return;
+  }
+
+  couponSelect.disabled = false;
+  messageSelect.disabled = false;
+
+  couponSelect.innerHTML =
+    '<option value="" disabled>Selecciona una persona</option>' +
+    available.map((user) =>
+      `<option value="${escapeHtml(user.uid)}">${escapeHtml(optionLabel(user))}</option>`
+    ).join('');
+
+  messageSelect.innerHTML =
+    '<option value="all">Todos los usuarios</option>' +
+    available.map((user) =>
+      `<option value="${escapeHtml(user.uid)}">${escapeHtml(optionLabel(user))}</option>`
+    ).join('');
+
+  if (partnerUid && byUid.has(partnerUid)) {
+    couponSelect.value = partnerUid;
+    messageSelect.value = partnerUid;
+    couponHint.textContent = 'Tu DinoDúo activo está seleccionado: ' + (partnerName || 'tu persona') + '.';
+    messageHint.textContent = 'Tu DinoDúo activo está seleccionado: ' + (partnerName || 'tu persona') + '.';
+  } else {
+    couponSelect.selectedIndex = 0;
+    messageSelect.value = 'all';
+    couponHint.textContent = available.length + (available.length === 1 ? ' persona disponible.' : ' personas disponibles.');
+    messageHint.textContent = 'Puedes elegir una persona o enviar a todos.';
+  }
 }
 
 function renderAdminUsers() {
