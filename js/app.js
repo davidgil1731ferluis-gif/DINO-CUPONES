@@ -176,11 +176,13 @@ function revealIntroLetter() {
 }
 
 function resetPngDinoStage() {
+  const intro = $('#introScreen');
   const stage = $('#dinoStage');
   const run = $('#dinoRun');
   const deliver = $('#dinoDeliver');
   const exit = $('#dinoExit');
   clearIntroTimers();
+  intro?.classList.remove('is-letter-mode');
   stage?.classList.remove('is-arrived', 'is-leaving');
   [run, deliver, exit].forEach((img) => img?.classList.remove('is-visible', 'is-running', 'is-delivering', 'is-exiting'));
   const letter = $('#letterDelivery');
@@ -209,6 +211,7 @@ function startPngIntro() {
 
   introLater(3750, () => {
     run.classList.remove('is-visible', 'is-running');
+    $('#introScreen')?.classList.add('is-letter-mode');
     stage.classList.add('is-arrived');
     deliver.classList.add('is-visible', 'is-delivering');
   });
@@ -265,6 +268,7 @@ $('#skipIntroBtn').onclick = () => {
   clearIntroTimers();
   introStarted = true;
   const stage = $('#dinoStage');
+  $('#introScreen')?.classList.add('is-letter-mode');
   stage?.classList.remove('is-arrived');
   stage?.classList.add('is-leaving');
   [$('#dinoRun'), $('#dinoDeliver'), $('#dinoExit')].forEach((img) => {
@@ -441,36 +445,63 @@ function couponAccent(status) {
   })[status] || 'Cupón';
 }
 
+function couponCode(coupon) {
+  const source = String(coupon?.id || coupon?.title || 'DINO');
+  let hash = 0;
+  for (let i = 0; i < source.length; i += 1) {
+    hash = ((hash << 5) - hash + source.charCodeAt(i)) | 0;
+  }
+  return `DC-${Math.abs(hash).toString(36).toUpperCase().padStart(6, '0').slice(0, 6)}`;
+}
+
 function renderCoupons() {
   const data = coupons.filter((coupon) => coupon.status === filter);
   $('#couponGrid').innerHTML = data.length
-    ? data.map((coupon) => `
-      <article class="coupon-card ${coupon.status} reveal-item" data-id="${coupon.id}">
-        <div class="coupon-punch left"></div>
-        <div class="coupon-punch right"></div>
-        <div class="coupon-card-inner">
-          <div class="coupon-topline">
+    ? data.map((coupon) => {
+      const code = couponCode(coupon);
+      return `
+      <article class="coupon-card ticket-coupon ${coupon.status} reveal-item" data-id="${coupon.id}">
+        <div class="ticket-main">
+          <div class="ticket-ribbon">
             <span class="coupon-series">DinoCupones</span>
             <span class="status-pill ${coupon.status}">${labelStatus(coupon.status)}</span>
           </div>
-          <div class="coupon-ticket-body">
-            <div class="coupon-icon">${coupon.emoji || '💜'}</div>
-            <div>
+
+          <div class="ticket-content">
+            <div class="ticket-icon-wrap">
+              <div class="coupon-icon">${coupon.emoji || '💜'}</div>
+              <small>Vale por</small>
+            </div>
+            <div class="ticket-copy">
               <small class="coupon-accent">${couponAccent(coupon.status)}</small>
               <h4>${escapeHtml(coupon.title)}</h4>
               <p>${escapeHtml(coupon.activity || '')}</p>
             </div>
           </div>
-          <div class="coupon-divider"><span></span></div>
-          <div class="coupon-footer">
-            <div class="coupon-date-block">
-              <small>Vence</small>
+
+          <div class="ticket-meta">
+            <div>
+              <small>Válido hasta</small>
               <strong>${fmtDate(coupon.expiresAt)}</strong>
             </div>
-            <button class="mini-btn" data-open-coupon="${coupon.id}">Ver cupón</button>
+            <div class="ticket-issued">
+              <small>Edición</small>
+              <strong>Especial</strong>
+            </div>
           </div>
         </div>
-      </article>`).join('')
+
+        <aside class="ticket-stub" aria-label="Talón del cupón">
+          <span class="stub-label">ADMIT ONE</span>
+          <div class="stub-heart">♥</div>
+          <div class="ticket-barcode" aria-hidden="true">
+            <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+          </div>
+          <code>${code}</code>
+          <button class="mini-btn ticket-open-btn" data-open-coupon="${coupon.id}" type="button">Abrir</button>
+        </aside>
+      </article>`;
+    }).join('')
     : `<div class="empty-state"><strong>No hay cupones aquí.</strong>Cuando aparezca uno, este espacio dejará de estar tan tranquilo. 🦖</div>`;
 
   observeReveals();
@@ -781,4 +812,3 @@ function renderAdminCoupons() {
 if (!firebaseReady) {
   console.info('DinoCupones está ejecutándose en modo demo. Configura js/firebase-config.js para conectar Firebase.');
 }
-window.addEventListener('beforeunload', () => cleanupDino?.());
