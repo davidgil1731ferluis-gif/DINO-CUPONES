@@ -1,51 +1,676 @@
-import {createDinoScene} from './dino-scene.js';
-import {firebaseReady,onAuth,login,logout,resetPassword,getProfile,listCoupons,createCoupon,setCouponProgress,listMural,uploadMural,listMessages,sendMessage,markMessageRead,listUsers,requestPushPermission,onForegroundMessage} from './firebase-service.js';
+import { createDinoScene } from './dino-scene.js';
+import {
+  firebaseReady,
+  onAuth,
+  login,
+  logout,
+  resetPassword,
+  getProfile,
+  listCoupons,
+  createCoupon,
+  setCouponProgress,
+  deleteCoupon,
+  resetCoupon,
+  listMural,
+  uploadMural,
+  listMessages,
+  sendMessage,
+  markMessageRead,
+  listUsers,
+  requestPushPermission,
+  onForegroundMessage
+} from './firebase-service.js';
 
-const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-let currentUser=null,profile=null,coupons=[],mural=[],messages=[],users=[],filter='active',localDemoMedia=[];
-const screens=['#introScreen','#letterScreen','#authScreen','#appScreen'];
-function showScreen(id){screens.forEach(x=>$(x).classList.toggle('is-visible',x===id));}
-function toast(text){const t=$('#toast');t.textContent=text;t.classList.add('show');clearTimeout(t._timer);t._timer=setTimeout(()=>t.classList.remove('show'),2600)}
-function fmtDate(d){return new Intl.DateTimeFormat('es-CO',{day:'2-digit',month:'short',year:'numeric'}).format(new Date(d));}
-function timeAgo(d){const sec=Math.floor((Date.now()-new Date(d).getTime())/1000);if(sec<60)return'ahora';if(sec<3600)return`hace ${Math.floor(sec/60)} min`;if(sec<86400)return`hace ${Math.floor(sec/3600)} h`;return fmtDate(d)}
-function escapeHtml(s=''){return s.replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => [...document.querySelectorAll(s)];
 
-const cleanupDino=createDinoScene($('#dinoStage'),()=>{$('#letterDelivery').hidden=false;});
-$('#skipIntroBtn').onclick=()=>{$('#letterDelivery').hidden=false;};
-$('#openLetterBtn').onclick=()=>showScreen('#letterScreen');
-$('#continueToLoginBtn').onclick=()=>showScreen('#authScreen');
-$('#togglePasswordBtn').onclick=()=>{const x=$('#loginPassword');x.type=x.type==='password'?'text':'password';};
-$('#forgotPasswordBtn').onclick=async()=>{const email=$('#loginEmail').value.trim();if(!email)return toast('Escribe primero tu correo.');try{await resetPassword(email);toast('Se envió el enlace de restablecimiento.');}catch(e){toast('No fue posible enviar el enlace.');console.error(e)}};
-$('#loginForm').onsubmit=async e=>{e.preventDefault();const btn=e.submitter;btn.disabled=true;try{await login($('#loginEmail').value.trim(),$('#loginPassword').value);if(!firebaseReady){await enterApp({uid:'demo-user',email:$('#loginEmail').value.trim()||'demo@dinocupones.app'});toast('Modo demo: conecta Firebase para usar datos reales.')}}catch(err){toast(humanAuthError(err));console.error(err)}finally{btn.disabled=false}};
-$('#logoutBtn').onclick=async()=>{await logout();currentUser=null;profile=null;showScreen('#authScreen');};
-function humanAuthError(err){const c=err?.code||'';if(c.includes('invalid-credential'))return'Usuario o contraseña incorrectos.';if(c.includes('too-many-requests'))return'Demasiados intentos. Intenta más tarde.';return'No se pudo iniciar sesión.'}
+let currentUser = null;
+let profile = null;
+let coupons = [];
+let mural = [];
+let messages = [];
+let users = [];
+let filter = 'active';
+let localDemoMedia = [];
+const screens = ['#introScreen', '#letterScreen', '#authScreen', '#appScreen'];
 
-onAuth(async user=>{if(firebaseReady&&user)await enterApp(user);else if(firebaseReady&&!user&&$('#introScreen').classList.contains('is-visible')===false)showScreen('#authScreen');});
-async function enterApp(user){currentUser=user;profile=await getProfile(user.uid);$('#userName').textContent=profile.displayName||'Dino';$('#userRole').textContent=profile.role==='admin'?'Administrador':'Invitado especial';$('#userAvatar').textContent=(profile.displayName||'D')[0].toUpperCase();$('#adminTabBtn').hidden=profile.role!=='admin';showScreen('#appScreen');await refreshAll();if('serviceWorker'in navigator){try{await navigator.serviceWorker.register('./firebase-messaging-sw.js');if(firebaseReady) setTimeout(()=>requestPushPermission(user.uid).catch(()=>{}),1400);}catch(e){console.warn(e)}}}
-async function refreshAll(){[coupons,mural,messages]=await Promise.all([listCoupons(currentUser.uid),listMural(),listMessages(currentUser.uid)]);localDemoMedia.length&&mural.unshift(...localDemoMedia);renderCoupons();renderMural();renderMessages();renderHero();if(profile.role==='admin'){users=await listUsers();renderAdminUsers();renderRecipients();renderAdminMedia();}}
-function renderHero(){const active=coupons.filter(c=>c.status==='active').sort((a,b)=>new Date(a.expiresAt)-new Date(b.expiresAt));$('#nextCouponTitle').textContent=active[0]?.title||'Crear un nuevo recuerdo';}
+let soundEnabled = false;
+let audioContext = null;
 
-$$('.tab-btn').forEach(b=>b.onclick=()=>{const tab=b.dataset.tab;$$('.tab-btn').forEach(x=>x.classList.toggle('is-active',x===b));$$('.tab-panel').forEach(x=>x.classList.remove('is-active'));`#${tab}Tab`&&$(`#${tab}Tab`).classList.add('is-active');});
-$$('.chip').forEach(b=>b.onclick=()=>{filter=b.dataset.filter;$$('.chip').forEach(x=>x.classList.toggle('is-active',x===b));renderCoupons();});
-function renderCoupons(){const data=coupons.filter(c=>c.status===filter);$('#couponGrid').innerHTML=data.length?data.map(c=>`<article class="coupon-card" data-id="${c.id}"><div class="coupon-icon">${c.emoji||'💜'}</div><span class="status-pill ${c.status}">${labelStatus(c.status)}</span><h4>${escapeHtml(c.title)}</h4><p>${escapeHtml(c.activity||'')}</p><div class="coupon-footer"><span class="coupon-date">Vence ${fmtDate(c.expiresAt)}</span><button class="mini-btn" data-open-coupon="${c.id}">Ver cupón</button></div></article>`).join(''):`<div class="empty-state"><strong>No hay cupones aquí.</strong>Cuando aparezca uno, este espacio dejará de estar tan tranquilo. 🦕</div>`;$$('[data-open-coupon]').forEach(b=>b.onclick=()=>openCoupon(b.dataset.openCoupon));}
-function labelStatus(s){return({active:'Activo',pending:'Por completar',completed:'Canjeado',expired:'Vencido'})[s]||s;}
-function openCoupon(id){const c=coupons.find(x=>x.id===id);if(!c)return;$('#couponDialogEmoji').textContent=c.emoji||'💜';const st=$('#couponDialogStatus');st.className=`status-pill ${c.status}`;st.textContent=labelStatus(c.status);$('#couponDialogTitle').textContent=c.title;$('#couponDialogActivity').textContent=c.activity;$('#couponDialogExpiry').textContent=fmtDate(c.expiresAt);const a=$('#couponDialogActions');a.innerHTML='';if(c.status==='active')a.innerHTML=`<button class="primary-btn" type="button" data-status="pending">Empezar aventura</button>`;if(c.status==='pending')a.innerHTML=`<button class="primary-btn" type="button" data-status="completed">Marcar como canjeado</button>`;a.querySelector('[data-status]')?.addEventListener('click',async e=>{await setCouponProgress(currentUser.uid,c.id,e.target.dataset.status);$('#couponDialog').close();coupons=await listCoupons(currentUser.uid);renderCoupons();renderHero();toast('Cupón actualizado 💜')});$('#couponDialog').showModal();}
+function playTone({frequency=520,duration=.14,type='sine',gain=.05,delay=0}={}) {
+  if (!soundEnabled) return;
+  try {
+    audioContext ||= new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioContext.createOscillator();
+    const volume = audioContext.createGain();
+    osc.type = type;
+    osc.frequency.value = frequency;
+    volume.gain.setValueAtTime(0, audioContext.currentTime + delay);
+    volume.gain.linearRampToValueAtTime(gain, audioContext.currentTime + delay + .015);
+    volume.gain.exponentialRampToValueAtTime(.0001, audioContext.currentTime + delay + duration);
+    osc.connect(volume);
+    volume.connect(audioContext.destination);
+    osc.start(audioContext.currentTime + delay);
+    osc.stop(audioContext.currentTime + delay + duration + .02);
+  } catch (error) {
+    console.debug('Audio no disponible', error);
+  }
+}
 
-$('#openUploadBtn').onclick=()=>{renderUploadCoupons();$('#uploadDialog').showModal();};$('#closeUploadBtn').onclick=()=>$('#uploadDialog').close();
-$('#uploadFile').onchange=()=>{const f=$('#uploadFile').files[0],p=$('#uploadPreview');if(!f){p.textContent='El archivo aparecerá aquí.';return}const u=URL.createObjectURL(f);p.innerHTML=f.type.startsWith('video/')?`<video src="${u}" controls></video>`:`<img src="${u}" alt="Vista previa">`;};
-function renderUploadCoupons(){$('#uploadCoupon').innerHTML='<option value="">Sin cupón específico</option>'+coupons.filter(c=>c.status!=='expired').map(c=>`<option value="${c.id}">${escapeHtml(c.title)}</option>`).join('');}
-$('#uploadForm').onsubmit=async e=>{e.preventDefault();const file=$('#uploadFile').files[0];if(!file)return;const btn=$('#uploadSubmitBtn');btn.disabled=true;btn.textContent='Subiendo...';try{const item=await uploadMural({uid:currentUser.uid,couponId:$('#uploadCoupon').value,caption:$('#uploadCaption').value.trim(),file});if(!firebaseReady)localDemoMedia.unshift(item);mural=await listMural();if(!firebaseReady)mural.unshift(...localDemoMedia);renderMural();if(profile.role==='admin')renderAdminMedia();$('#uploadForm').reset();$('#uploadPreview').textContent='El archivo aparecerá aquí.';$('#uploadDialog').close();toast('Recuerdo guardado en el DinoMural.');}catch(err){console.error(err);toast('No se pudo subir el recuerdo.');}finally{btn.disabled=false;btn.textContent='Guardar recuerdo'}};
-function renderMural(){const g=$('#muralGrid');g.innerHTML=mural.length?mural.map(m=>`<article class="mural-card">${m.type==='video'?`<video class="mural-media" src="${m.mediaUrl||m.localUrl}" controls preload="metadata"></video>`:`<img class="mural-media" src="${m.mediaUrl||m.localUrl}" alt="Recuerdo del DinoMural" loading="lazy">`}<div class="mural-copy"><p>${escapeHtml(m.caption||'Un recuerdo sin título, pero con historia.')}</p><small>${timeAgo(m.createdAt||new Date())}${m.fileName?` · ${escapeHtml(m.fileName)}`:''}</small></div></article>`).join(''):`<div class="empty-state"><strong>El mural todavía está vacío.</strong>La primera foto siempre es la que empieza la historia.</div>`;}
+function playChime(kind='soft') {
+  if (!soundEnabled) return;
+  if (kind === 'complete') {
+    playTone({frequency:523,duration:.16,gain:.045});
+    playTone({frequency:659,duration:.18,gain:.045,delay:.08});
+    playTone({frequency:784,duration:.22,gain:.04,delay:.16});
+    return;
+  }
+  playTone({frequency:587,duration:.14,gain:.04});
+  playTone({frequency:740,duration:.18,gain:.035,delay:.09});
+}
 
-$('#notificationBtn').onclick=()=>toggleDrawer(true);$('#closeNotificationsBtn').onclick=()=>toggleDrawer(false);$('#drawerBackdrop').onclick=()=>toggleDrawer(false);function toggleDrawer(open){$('#notificationDrawer').classList.toggle('is-open',open);$('#drawerBackdrop').classList.toggle('is-open',open);$('#notificationDrawer').setAttribute('aria-hidden',String(!open));}
-function renderMessages(){const unread=messages.filter(m=>!m.read).length;$('#notificationBadge').hidden=!unread;$('#notificationBadge').textContent=unread;$('#notificationList').innerHTML=messages.length?messages.map(m=>`<button class="notification-item ${m.read?'':'unread'}" data-message-id="${m.id}" type="button"><strong>${escapeHtml(m.title)}</strong><p>${escapeHtml(m.body)}</p><small>${timeAgo(m.createdAt||new Date())}</small></button>`).join(''):`<div class="empty-state"><strong>Sin mensajes.</strong>Cuando llegue uno aparecerá aquí.</div>`;$$('[data-message-id]').forEach(b=>b.onclick=async()=>{await markMessageRead(b.dataset.messageId);const m=messages.find(x=>x.id===b.dataset.messageId);if(m)m.read=true;renderMessages();});}
-onForegroundMessage(payload=>{const n=payload.notification||{};toast(n.title?`${n.title}: ${n.body||''}`:'Llegó una nueva notificación.');refreshAll();});
+function celebrateFrom(element) {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const rect = element?.getBoundingClientRect?.() || {left:window.innerWidth/2,top:window.innerHeight/2,width:0,height:0};
+  const emojis=['💜','💗','✨','🌸'];
+  for (let i=0;i<12;i++) {
+    const particle=document.createElement('span');
+    particle.className='celebration-particle';
+    particle.textContent=emojis[i%emojis.length];
+    particle.style.left=`${rect.left+rect.width/2}px`;
+    particle.style.top=`${rect.top+rect.height/2}px`;
+    particle.style.setProperty('--tx',`${(Math.random()-.5)*180}px`);
+    particle.style.setProperty('--ty',`${-40-Math.random()*120}px`);
+    particle.style.setProperty('--rot',`${(Math.random()-.5)*90}deg`);
+    document.body.appendChild(particle);
+    setTimeout(()=>particle.remove(),950);
+  }
+}
 
-$('#couponForm').onsubmit=async e=>{e.preventDefault();const btn=e.submitter;btn.disabled=true;try{await createCoupon({title:$('#couponTitle').value.trim(),activity:$('#couponActivity').value.trim(),expiresAt:new Date($('#couponExpiry').value),createdBy:currentUser.uid});e.target.reset();coupons=await listCoupons(currentUser.uid);renderCoupons();renderHero();toast('Cupón publicado.');}catch(err){console.error(err);toast('No se pudo publicar el cupón.');}finally{btn.disabled=false}};
-$('#messageForm').onsubmit=async e=>{e.preventDefault();const btn=e.submitter;btn.disabled=true;try{await sendMessage({targetUid:$('#messageRecipient').value,title:$('#messageTitle').value.trim(),body:$('#messageBody').value.trim(),createdBy:currentUser.uid});e.target.reset();messages=await listMessages(currentUser.uid);renderMessages();toast('Mensaje enviado.');}catch(err){console.error(err);toast('No se pudo enviar el mensaje.');}finally{btn.disabled=false}};
-function renderRecipients(){$('#messageRecipient').innerHTML='<option value="all">Todos</option>'+users.filter(u=>u.role!=='admin'||u.uid!==currentUser.uid).map(u=>`<option value="${u.uid}">${escapeHtml(u.displayName||u.email||u.uid)}</option>`).join('');}
-function renderAdminUsers(){$('#adminUsersList').innerHTML=users.map(u=>`<div class="admin-row"><div><strong>${escapeHtml(u.displayName||'Sin nombre')}</strong><small>${escapeHtml(u.email||u.uid)} · ${u.role||'user'}</small></div><button class="mini-btn" data-reset-email="${escapeHtml(u.email||'')}" type="button">Restablecer</button></div>`).join('');$$('[data-reset-email]').forEach(b=>b.onclick=async()=>{if(!b.dataset.resetEmail)return toast('Este usuario no tiene correo registrado.');try{await resetPassword(b.dataset.resetEmail);toast('Enlace de restablecimiento enviado.');}catch(e){toast('No se pudo enviar el enlace.');}})}
-function renderAdminMedia(){$('#adminMediaList').innerHTML=mural.length?mural.map(m=>`<div class="admin-row"><div><strong>${escapeHtml(m.fileName||'Recuerdo')}</strong><small>${m.type||'archivo'} · ${timeAgo(m.createdAt||new Date())}</small></div>${m.mediaUrl?`<a class="mini-btn" href="${m.mediaUrl}" target="_blank" rel="noopener">Descargar</a>`:'<span class="mini-btn">Demo</span>'}</div>`).join(''):'<div class="empty-state"><strong>Sin archivos.</strong></div>';}
+function observeReveals() {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) {
+    $$('.reveal-item').forEach(el=>el.classList.add('is-revealed'));
+    return;
+  }
+  const observer=new IntersectionObserver((entries,obs)=>{
+    entries.forEach(entry=>{
+      if(entry.isIntersecting){
+        entry.target.classList.add('is-revealed');
+        obs.unobserve(entry.target);
+      }
+    });
+  },{rootMargin:'80px 0px',threshold:.08});
+  $$('.reveal-item:not(.is-revealed)').forEach(el=>observer.observe(el));
+}
 
-if(!firebaseReady) console.info('DinoCupones está ejecutándose en modo demo. Configura js/firebase-config.js para conectar Firebase.');
-window.addEventListener('beforeunload',()=>cleanupDino?.());
+function showScreen(id) {
+  screens.forEach((screenId) => $(screenId).classList.toggle('is-visible', screenId === id));
+}
+
+function toast(text) {
+  const t = $('#toast');
+  t.textContent = text;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+function fmtDate(date) {
+  return new Intl.DateTimeFormat('es-CO', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  }).format(new Date(date));
+}
+
+function fmtDateTime(date) {
+  return new Intl.DateTimeFormat('es-CO', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(new Date(date));
+}
+
+function timeAgo(date) {
+  const sec = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
+  if (sec < 60) return 'ahora';
+  if (sec < 3600) return `hace ${Math.floor(sec / 60)} min`;
+  if (sec < 86400) return `hace ${Math.floor(sec / 3600)} h`;
+  return fmtDate(date);
+}
+
+function escapeHtml(text = '') {
+  return String(text).replace(/[&<>'"]/g, (char) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    "'": '&#39;',
+    '"': '&quot;'
+  }[char]));
+}
+
+function safeConfirm(message) {
+  return window.confirm(message);
+}
+
+const cleanupDino = createDinoScene($('#dinoStage'), () => {
+  $('#letterDelivery').hidden = false;
+  $('#letterDelivery').classList.add('is-visible');
+});
+
+$('#skipIntroBtn').onclick = () => {
+  $('#letterDelivery').hidden = false;
+  $('#letterDelivery').classList.add('is-visible');
+};
+$('#openLetterBtn').onclick = () => { playChime('soft'); showScreen('#letterScreen'); };
+$('#continueToLoginBtn').onclick = () => { playChime('soft'); showScreen('#authScreen'); };
+$('#soundToggleBtn').onclick = () => {
+  soundEnabled = !soundEnabled;
+  $('#soundToggleBtn').setAttribute('aria-pressed', String(soundEnabled));
+  $('#soundToggleBtn').setAttribute('aria-label', soundEnabled ? 'Desactivar sonidos' : 'Activar sonidos');
+  toast(soundEnabled ? 'Sonidos suaves activados ♪' : 'Sonidos desactivados');
+  if (soundEnabled) playChime('soft');
+};
+
+$('#togglePasswordBtn').onclick = () => {
+  const input = $('#loginPassword');
+  input.type = input.type === 'password' ? 'text' : 'password';
+};
+
+$('#forgotPasswordBtn').onclick = async () => {
+  const email = $('#loginEmail').value.trim();
+  if (!email) return toast('Escribe primero tu correo.');
+  try {
+    await resetPassword(email);
+    toast('Se envió el enlace de restablecimiento.');
+  } catch (error) {
+    console.error(error);
+    toast('No fue posible enviar el enlace.');
+  }
+};
+
+$('#loginForm').onsubmit = async (event) => {
+  event.preventDefault();
+  const submitter = event.submitter;
+  submitter.disabled = true;
+  try {
+    await login($('#loginEmail').value.trim(), $('#loginPassword').value);
+    if (!firebaseReady) {
+      await enterApp({ uid: 'demo-user', email: $('#loginEmail').value.trim() || 'demo@dinocupones.app' });
+      toast('Modo demo: conecta Firebase para usar datos reales.');
+    }
+  } catch (error) {
+    console.error(error);
+    toast(humanAuthError(error));
+  } finally {
+    submitter.disabled = false;
+  }
+};
+
+$('#logoutBtn').onclick = async () => {
+  await logout();
+  currentUser = null;
+  profile = null;
+  showScreen('#authScreen');
+};
+
+function humanAuthError(error) {
+  const code = error?.code || '';
+  if (code.includes('invalid-credential')) return 'Usuario o contraseña incorrectos.';
+  if (code.includes('too-many-requests')) return 'Demasiados intentos. Intenta más tarde.';
+  return 'No se pudo iniciar sesión.';
+}
+
+onAuth(async (user) => {
+  if (firebaseReady && user) {
+    await enterApp(user);
+  } else if (firebaseReady && !user && !$('#introScreen').classList.contains('is-visible')) {
+    showScreen('#authScreen');
+  }
+});
+
+async function enterApp(user) {
+  currentUser = user;
+  profile = await getProfile(user.uid);
+  $('#userName').textContent = profile.displayName || 'Dino';
+  $('#userRole').textContent = profile.role === 'admin' ? 'Administrador' : 'Invitado especial';
+  $('#userAvatar').textContent = (profile.displayName || 'D')[0].toUpperCase();
+  $('#adminTabBtn').hidden = profile.role !== 'admin';
+  showScreen('#appScreen');
+  await refreshAll();
+
+  if ('serviceWorker' in navigator) {
+    try {
+      await navigator.serviceWorker.register('./firebase-messaging-sw.js');
+      if (firebaseReady) {
+        setTimeout(() => requestPushPermission(user.uid).catch(() => {}), 1200);
+      }
+    } catch (error) {
+      console.warn(error);
+    }
+  }
+}
+
+async function refreshAll() {
+  [coupons, mural, messages] = await Promise.all([
+    listCoupons(currentUser.uid),
+    listMural(),
+    listMessages(currentUser.uid)
+  ]);
+
+  if (localDemoMedia.length) mural.unshift(...localDemoMedia);
+
+  renderCoupons();
+  renderMural();
+  renderMessages();
+  renderHero();
+  renderSummary();
+
+  if (profile.role === 'admin') {
+    users = await listUsers();
+    renderAdminUsers();
+    renderRecipients();
+    renderAdminMedia();
+    renderAdminCoupons();
+    renderAdminSummary();
+  }
+}
+
+function renderSummary() {
+  $('#statActive').textContent = coupons.filter(c=>c.status==='active').length;
+  $('#statPending').textContent = coupons.filter(c=>c.status==='pending').length;
+  $('#statCompleted').textContent = coupons.filter(c=>c.status==='completed').length;
+}
+
+function renderAdminSummary() {
+  if (profile?.role !== 'admin') return;
+  $('#adminTotalCoupons').textContent = coupons.length;
+  $('#adminUnreadMessages').textContent = messages.filter(m=>!m.read).length;
+  $('#adminTotalMemories').textContent = mural.length;
+}
+
+function renderHero() {
+  const active = coupons
+    .filter((coupon) => coupon.status === 'active')
+    .sort((a, b) => new Date(a.expiresAt) - new Date(b.expiresAt));
+  $('#nextCouponTitle').textContent = active[0]?.title || 'Crear un nuevo recuerdo';
+}
+
+$$('.tab-btn').forEach((button) => {
+  button.onclick = () => {
+    const tab = button.dataset.tab;
+    $$('.tab-btn').forEach((item) => item.classList.toggle('is-active', item === button));
+    $$('.tab-panel').forEach((panel) => panel.classList.remove('is-active'));
+    $(`#${tab}Tab`).classList.add('is-active');
+  };
+});
+
+$$('.chip').forEach((button) => {
+  button.onclick = () => {
+    filter = button.dataset.filter;
+    $$('.chip').forEach((item) => item.classList.toggle('is-active', item === button));
+    renderCoupons();
+  };
+});
+
+function labelStatus(status) {
+  return ({
+    active: 'Activo',
+    pending: 'Por completar',
+    completed: 'Canjeado',
+    expired: 'Vencido'
+  })[status] || status;
+}
+
+function couponAccent(status) {
+  return ({
+    active: 'Activo ahora',
+    pending: 'A mitad de aventura',
+    completed: 'Recuerdo cumplido',
+    expired: 'Tiempo agotado'
+  })[status] || 'Cupón';
+}
+
+function renderCoupons() {
+  const data = coupons.filter((coupon) => coupon.status === filter);
+  $('#couponGrid').innerHTML = data.length
+    ? data.map((coupon) => `
+      <article class="coupon-card ${coupon.status} reveal-item" data-id="${coupon.id}">
+        <div class="coupon-punch left"></div>
+        <div class="coupon-punch right"></div>
+        <div class="coupon-card-inner">
+          <div class="coupon-topline">
+            <span class="coupon-series">DinoCupones</span>
+            <span class="status-pill ${coupon.status}">${labelStatus(coupon.status)}</span>
+          </div>
+          <div class="coupon-ticket-body">
+            <div class="coupon-icon">${coupon.emoji || '💜'}</div>
+            <div>
+              <small class="coupon-accent">${couponAccent(coupon.status)}</small>
+              <h4>${escapeHtml(coupon.title)}</h4>
+              <p>${escapeHtml(coupon.activity || '')}</p>
+            </div>
+          </div>
+          <div class="coupon-divider"><span></span></div>
+          <div class="coupon-footer">
+            <div class="coupon-date-block">
+              <small>Vence</small>
+              <strong>${fmtDate(coupon.expiresAt)}</strong>
+            </div>
+            <button class="mini-btn" data-open-coupon="${coupon.id}">Ver cupón</button>
+          </div>
+        </div>
+      </article>`).join('')
+    : `<div class="empty-state"><strong>No hay cupones aquí.</strong>Cuando aparezca uno, este espacio dejará de estar tan tranquilo. 🦖</div>`;
+
+  observeReveals();
+  $$('[data-open-coupon]').forEach((button) => {
+    button.onclick = () => openCoupon(button.dataset.openCoupon);
+  });
+}
+
+function openCoupon(id) {
+  const coupon = coupons.find((item) => item.id === id);
+  if (!coupon) return;
+
+  $('#couponDialogEmoji').textContent = coupon.emoji || '💜';
+  const status = $('#couponDialogStatus');
+  status.className = `status-pill ${coupon.status}`;
+  status.textContent = labelStatus(coupon.status);
+  $('#couponDialogTitle').textContent = coupon.title;
+  $('#couponDialogActivity').textContent = coupon.activity;
+  $('#couponDialogExpiry').textContent = fmtDateTime(coupon.expiresAt);
+
+  const actions = $('#couponDialogActions');
+  actions.innerHTML = '';
+  if (coupon.status === 'active') {
+    actions.innerHTML = `<button class="primary-btn" type="button" data-status="pending">Empezar aventura</button>`;
+  }
+  if (coupon.status === 'pending') {
+    actions.innerHTML = `<button class="primary-btn" type="button" data-status="completed">Marcar como canjeado</button>`;
+  }
+
+  actions.querySelector('[data-status]')?.addEventListener('click', async (event) => {
+    const nextStatus = event.target.dataset.status;
+    const origin = document.querySelector(`[data-id="${coupon.id}"]`);
+    await setCouponProgress(currentUser.uid, coupon.id, nextStatus);
+    $('#couponDialog').close();
+    coupons = await listCoupons(currentUser.uid);
+    renderCoupons();
+    renderHero();
+    renderSummary();
+    if (profile.role === 'admin') { renderAdminCoupons(); renderAdminSummary(); }
+    if (nextStatus === 'completed') {
+      playChime('complete');
+      celebrateFrom(origin || event.target);
+    } else {
+      playChime('soft');
+    }
+    toast('Cupón actualizado 💜');
+  });
+
+  $('#couponDialog').showModal();
+}
+
+$('#openUploadBtn').onclick = () => {
+  renderUploadCoupons();
+  $('#uploadDialog').showModal();
+};
+$('#closeUploadBtn').onclick = () => $('#uploadDialog').close();
+
+$('#uploadFile').onchange = () => {
+  const file = $('#uploadFile').files[0];
+  const preview = $('#uploadPreview');
+  if (!file) {
+    preview.textContent = 'El archivo aparecerá aquí.';
+    return;
+  }
+  const url = URL.createObjectURL(file);
+  preview.innerHTML = file.type.startsWith('video/')
+    ? `<video src="${url}" controls preload="metadata"></video>`
+    : `<img src="${url}" alt="Vista previa">`;
+};
+
+function renderUploadCoupons() {
+  $('#uploadCoupon').innerHTML = '<option value="">Sin cupón específico</option>' + coupons
+    .filter((coupon) => coupon.status !== 'expired')
+    .map((coupon) => `<option value="${coupon.id}">${escapeHtml(coupon.title)}</option>`)
+    .join('');
+}
+
+$('#uploadForm').onsubmit = async (event) => {
+  event.preventDefault();
+  const file = $('#uploadFile').files[0];
+  if (!file) return;
+
+  const submitButton = $('#uploadSubmitBtn');
+  submitButton.disabled = true;
+  submitButton.textContent = 'Subiendo...';
+  try {
+    const item = await uploadMural({
+      uid: currentUser.uid,
+      couponId: $('#uploadCoupon').value,
+      caption: $('#uploadCaption').value.trim(),
+      file
+    });
+
+    if (!firebaseReady) localDemoMedia.unshift(item);
+    mural = await listMural();
+    if (!firebaseReady) mural.unshift(...localDemoMedia);
+    renderMural();
+    if (profile.role === 'admin') renderAdminMedia();
+    $('#uploadForm').reset();
+    $('#uploadPreview').textContent = 'El archivo aparecerá aquí.';
+    $('#uploadDialog').close();
+    toast('Recuerdo guardado en el DinoMural.');
+  } catch (error) {
+    console.error(error);
+    toast('No se pudo subir el recuerdo.');
+  } finally {
+    submitButton.disabled = false;
+    submitButton.textContent = 'Guardar recuerdo';
+  }
+};
+
+function renderMural() {
+  const grid = $('#muralGrid');
+  grid.innerHTML = mural.length
+    ? mural.map((item, index) => `
+      <article class="mural-card frame-${index % 3} reveal-item">
+        <div class="mural-frame-tape tape-left"></div>
+        <div class="mural-frame-tape tape-right"></div>
+        <div class="mural-media-shell">
+          ${item.type === 'video'
+            ? `<video class="mural-media" src="${item.mediaUrl || item.localUrl}" controls preload="metadata"></video>`
+            : `<img class="mural-media" src="${item.mediaUrl || item.localUrl}" alt="Recuerdo del DinoMural" loading="lazy">`}
+        </div>
+        <div class="mural-copy">
+          <p>${escapeHtml(item.caption || 'Un recuerdo sin título, pero con historia.')}</p>
+          <small>${timeAgo(item.createdAt || new Date())}${item.fileName ? ` · ${escapeHtml(item.fileName)}` : ''}</small>
+        </div>
+      </article>`).join('')
+    : `<div class="empty-state"><strong>El mural todavía está vacío.</strong>La primera foto siempre es la que empieza la historia.</div>`;
+  observeReveals();
+}
+
+$('#notificationBtn').onclick = () => toggleDrawer(true);
+$('#closeNotificationsBtn').onclick = () => toggleDrawer(false);
+$('#drawerBackdrop').onclick = () => toggleDrawer(false);
+function toggleDrawer(open) {
+  $('#notificationDrawer').classList.toggle('is-open', open);
+  $('#drawerBackdrop').classList.toggle('is-open', open);
+  $('#notificationDrawer').setAttribute('aria-hidden', String(!open));
+}
+
+function renderMessages() {
+  const unread = messages.filter((message) => !message.read).length;
+  $('#notificationBadge').hidden = !unread;
+  $('#notificationBadge').textContent = unread;
+
+  $('#notificationList').innerHTML = messages.length
+    ? messages.map((message) => `
+      <button class="notification-item ${message.read ? '' : 'unread'}" data-message-id="${message.id}" type="button">
+        <strong>${escapeHtml(message.title)}</strong>
+        <p>${escapeHtml(message.body)}</p>
+        <small>${timeAgo(message.createdAt || new Date())}</small>
+      </button>`).join('')
+    : `<div class="empty-state"><strong>Sin mensajes.</strong>Cuando llegue uno aparecerá aquí.</div>`;
+
+  $$('[data-message-id]').forEach((button) => {
+    button.onclick = async () => {
+      await markMessageRead(button.dataset.messageId);
+      const message = messages.find((item) => item.id === button.dataset.messageId);
+      if (message) message.read = true;
+      renderMessages();
+    };
+  });
+}
+
+onForegroundMessage((payload) => {
+  const notification = payload.notification || {};
+  toast(notification.title ? `${notification.title}: ${notification.body || ''}` : 'Llegó una nueva notificación.');
+  refreshAll();
+});
+
+$('#couponForm').onsubmit = async (event) => {
+  event.preventDefault();
+  const submitter = event.submitter;
+  submitter.disabled = true;
+  try {
+    await createCoupon({
+      title: $('#couponTitle').value.trim(),
+      activity: $('#couponActivity').value.trim(),
+      expiresAt: new Date($('#couponExpiry').value),
+      createdBy: currentUser.uid
+    });
+    event.target.reset();
+    await refreshAll();
+    toast('Cupón publicado.');
+  } catch (error) {
+    console.error(error);
+    toast('No se pudo publicar el cupón.');
+  } finally {
+    submitter.disabled = false;
+  }
+};
+
+$('#messageForm').onsubmit = async (event) => {
+  event.preventDefault();
+  const submitter = event.submitter;
+  submitter.disabled = true;
+  try {
+    await sendMessage({
+      targetUid: $('#messageRecipient').value,
+      title: $('#messageTitle').value.trim(),
+      body: $('#messageBody').value.trim(),
+      createdBy: currentUser.uid
+    });
+    event.target.reset();
+    messages = await listMessages(currentUser.uid);
+    renderMessages();
+    playChime('soft');
+    toast('Mensaje enviado.');
+  } catch (error) {
+    console.error(error);
+    toast('No se pudo enviar el mensaje.');
+  } finally {
+    submitter.disabled = false;
+  }
+};
+
+function renderRecipients() {
+  $('#messageRecipient').innerHTML = '<option value="all">Todos</option>' + users
+    .filter((user) => user.role !== 'admin' || user.uid !== currentUser.uid)
+    .map((user) => `<option value="${user.uid}">${escapeHtml(user.displayName || user.email || user.uid)}</option>`)
+    .join('');
+}
+
+function renderAdminUsers() {
+  $('#adminUsersList').innerHTML = users.map((user) => `
+    <div class="admin-row">
+      <div>
+        <strong>${escapeHtml(user.displayName || 'Sin nombre')}</strong>
+        <small>${escapeHtml(user.email || user.uid)} · ${user.role || 'user'}</small>
+      </div>
+      <button class="mini-btn" data-reset-email="${escapeHtml(user.email || '')}" type="button">Restablecer</button>
+    </div>`).join('');
+
+  $$('[data-reset-email]').forEach((button) => {
+    button.onclick = async () => {
+      if (!button.dataset.resetEmail) return toast('Este usuario no tiene correo registrado.');
+      try {
+        await resetPassword(button.dataset.resetEmail);
+        toast('Enlace de restablecimiento enviado.');
+      } catch (error) {
+        console.error(error);
+        toast('No se pudo enviar el enlace.');
+      }
+    };
+  });
+}
+
+function renderAdminMedia() {
+  $('#adminMediaList').innerHTML = mural.length
+    ? mural.map((item) => `
+      <div class="admin-row">
+        <div>
+          <strong>${escapeHtml(item.fileName || 'Recuerdo')}</strong>
+          <small>${item.type || 'archivo'} · ${timeAgo(item.createdAt || new Date())}</small>
+        </div>
+        ${item.mediaUrl
+          ? `<a class="mini-btn" href="${item.mediaUrl}" target="_blank" rel="noopener">Descargar</a>`
+          : '<span class="mini-btn">Demo</span>'}
+      </div>`).join('')
+    : '<div class="empty-state"><strong>Sin archivos.</strong></div>';
+}
+
+function renderAdminCoupons() {
+  $('#adminCouponsList').innerHTML = coupons.length
+    ? coupons.map((coupon) => `
+      <div class="admin-row admin-row-stack">
+        <div>
+          <strong>${escapeHtml(coupon.title)}</strong>
+          <small>${labelStatus(coupon.status)} · vence ${fmtDate(coupon.expiresAt)}</small>
+        </div>
+        <div class="admin-actions-inline">
+          <button class="mini-btn" data-reset-coupon="${coupon.id}" type="button">Restablecer</button>
+          <button class="mini-btn danger" data-delete-coupon="${coupon.id}" type="button">Eliminar</button>
+        </div>
+      </div>`).join('')
+    : '<div class="empty-state"><strong>Sin cupones creados.</strong></div>';
+
+  $$('[data-reset-coupon]').forEach((button) => {
+    button.onclick = async () => {
+      try {
+        await resetCoupon(button.dataset.resetCoupon);
+        await refreshAll();
+        playChime('soft');
+        toast('Cupón restablecido.');
+      } catch (error) {
+        console.error(error);
+        toast('No se pudo restablecer el cupón.');
+      }
+    };
+  });
+
+  $$('[data-delete-coupon]').forEach((button) => {
+    button.onclick = async () => {
+      if (!safeConfirm('¿Deseas eliminar este cupón?')) return;
+      try {
+        await deleteCoupon(button.dataset.deleteCoupon);
+        await refreshAll();
+        toast('Cupón eliminado.');
+      } catch (error) {
+        console.error(error);
+        toast('No se pudo eliminar el cupón.');
+      }
+    };
+  });
+}
+
+if (!firebaseReady) {
+  console.info('DinoCupones está ejecutándose en modo demo. Configura js/firebase-config.js para conectar Firebase.');
+}
+window.addEventListener('beforeunload', () => cleanupDino?.());
