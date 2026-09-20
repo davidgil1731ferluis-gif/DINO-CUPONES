@@ -1,12 +1,16 @@
 {
+  "id": "./",
   "name": "DinoCupones",
   "short_name": "DinoCupones",
-  "description": "Cupones, recuerdos y mensajes para compartir.",
+  "description": "Cupones, recuerdos y mensajes privados para compartir en pareja.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "any",
   "background_color": "#fff7fb",
   "theme_color": "#f5d9f1",
+  "categories": ["lifestyle", "social"],
   "icons": [
     {"src":"./assets/dino-heart.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
   ]
