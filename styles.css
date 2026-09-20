@@ -1524,7 +1524,7 @@ input:focus,textarea:focus,select:focus{border-color:#ba96ff;box-shadow:0 0 0 4p
     top:auto;
     z-index:70;
     display:grid;
-    grid-template-columns:repeat(4,minmax(0,1fr));
+    grid-template-columns:repeat(3,minmax(0,1fr));
     gap:4px;
     margin:0;
     padding:7px;
@@ -1698,4 +1698,8 @@ button:focus-visible,
   .auth-card{width:min(94vw,520px);padding:22px 18px}
   .auth-mode-switch{margin-top:15px}
   .auth-mode-btn{min-height:42px}
+}
+
+@media(max-width:760px){
+  .tabbar.has-admin{grid-template-columns:repeat(4,minmax(0,1fr))}
 }
