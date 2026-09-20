@@ -1,5 +1,7 @@
 import {
   firebaseReady,
+  mediaReady,
+  pushReady,
   onAuth,
   login,
   registerAccount,
@@ -26,6 +28,8 @@ import {
   markMessageRead,
   listUsers,
   requestPushPermission,
+  identifyPushUser,
+  clearPushUser,
   onForegroundMessage
 } from './firebase-service.js';
 
@@ -455,6 +459,7 @@ $('#registerForm').onsubmit = async (event) => {
 
 $('#logoutBtn').onclick = async () => {
   try {
+    await clearPushUser();
     await logout();
   } finally {
     resetSessionState();
@@ -496,13 +501,17 @@ async function enterApp(user) {
   await refreshAll();
 
   if ('serviceWorker' in navigator) {
-    try {
-      await navigator.serviceWorker.register('./firebase-messaging-sw.js');
-      renderNotificationPermissionState();
-    } catch (error) {
-      console.warn(error);
-    }
+    navigator.serviceWorker.register('./sw.js').catch((error) => {
+      console.warn('No se pudo registrar el service worker de la app.', error);
+    });
   }
+
+  if (pushReady) {
+    identifyPushUser(user.uid).catch((error) => {
+      console.warn('OneSignal todavía no pudo identificar al usuario.', error);
+    });
+  }
+  renderNotificationPermissionState();
 }
 
 async function refreshAll() {
@@ -1012,7 +1021,7 @@ $('#uploadForm').onsubmit = async (event) => {
     toast(currentPair ? 'Recuerdo guardado en su DinoMural 💜' : 'Recuerdo privado guardado.');
   } catch (error) {
     console.error(error);
-    toast('No se pudo subir el recuerdo.');
+    toast(error?.message || 'No se pudo subir el recuerdo.');
   } finally {
     submitButton.disabled = false;
     submitButton.textContent = 'Guardar recuerdo';
@@ -1088,6 +1097,12 @@ function renderNotificationPermissionState() {
     button.disabled = true;
     button.textContent = 'Demo';
     label.textContent = 'Se activará cuando conectemos Firebase.';
+    return;
+  }
+  if (!pushReady) {
+    button.disabled = true;
+    button.textContent = 'Pendiente';
+    label.textContent = 'Falta completar la configuración de OneSignal y Cloudflare.';
     return;
   }
   if (!('Notification' in window)) {
