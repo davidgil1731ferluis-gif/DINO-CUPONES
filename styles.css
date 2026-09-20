@@ -1703,3 +1703,109 @@ button:focus-visible,
 @media(max-width:760px){
   .tabbar.has-admin{grid-template-columns:repeat(4,minmax(0,1fr))}
 }
+
+
+/* =========================================================
+   INSTALLABLE PWA
+   ========================================================= */
+.install-inline-btn{
+  width:100%;
+  margin-top:10px;
+  justify-content:center;
+  color:#6f4b79;
+}
+.install-app-btn{
+  position:relative;
+}
+.install-app-btn span{
+  display:block;
+  transform:translateY(-1px);
+}
+.install-dialog{
+  width:min(430px,92vw);
+  max-width:none;
+  padding:0;
+  border:0;
+  background:transparent;
+}
+.install-dialog::backdrop{
+  background:rgba(38,23,43,.58);
+  backdrop-filter:blur(8px);
+}
+.install-card{
+  position:relative;
+  padding:30px 28px 26px;
+  border-radius:30px;
+  background:
+    radial-gradient(circle at 15% 10%,rgba(255,214,235,.48),transparent 28%),
+    radial-gradient(circle at 90% 15%,rgba(209,191,255,.34),transparent 30%),
+    linear-gradient(145deg,#fffdfb,#fff4fa 60%,#f8f1ff);
+  border:1px solid rgba(255,255,255,.9);
+  box-shadow:0 32px 90px rgba(48,28,54,.34);
+  text-align:center;
+}
+.install-app-icon{
+  width:88px;
+  height:88px;
+  margin:0 auto 18px;
+  padding:8px;
+  border-radius:26px;
+  background:#fff;
+  box-shadow:0 16px 34px rgba(91,55,103,.16);
+}
+.install-app-icon img{
+  width:100%;
+  height:100%;
+  border-radius:20px;
+  display:block;
+}
+.install-card h3{
+  margin:9px 0 8px;
+  font-family:"Playfair Display",serif;
+  color:#452752;
+  font-size:1.9rem;
+}
+.install-card>p{
+  margin:0 auto 18px;
+  max-width:34ch;
+  color:#756279;
+  line-height:1.55;
+  font-size:.9rem;
+}
+.install-steps{
+  display:grid;
+  gap:9px;
+  margin:18px 0;
+  text-align:left;
+}
+.install-steps>div{
+  display:grid;
+  grid-template-columns:34px 1fr;
+  align-items:center;
+  gap:10px;
+  padding:11px 12px;
+  border:1px solid #eadbea;
+  border-radius:16px;
+  background:rgba(255,255,255,.7);
+}
+.install-steps b{
+  width:30px;
+  height:30px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  color:#fff;
+  background:linear-gradient(135deg,#8c5be0,#e777ad);
+  font-size:.75rem;
+}
+.install-steps span{
+  color:#66516d;
+  font-size:.82rem;
+  line-height:1.4;
+}
+
+@media(max-width:520px){
+  .install-card{padding:25px 18px 20px;border-radius:26px}
+  .install-card h3{font-size:1.65rem}
+  .install-app-icon{width:78px;height:78px;border-radius:23px}
+}
