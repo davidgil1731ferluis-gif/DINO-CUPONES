@@ -1,4 +1,3 @@
-import { createDinoScene } from './dino-scene.js';
 import {
   firebaseReady,
   onAuth,
@@ -155,14 +154,123 @@ function safeConfirm(message) {
   return window.confirm(message);
 }
 
-const cleanupDino = createDinoScene($('#dinoStage'), () => {
-  $('#letterDelivery').hidden = false;
-  $('#letterDelivery').classList.add('is-visible');
-});
+const introTimers = [];
+let introStarted = false;
+
+function introLater(delay, callback) {
+  const timer = window.setTimeout(callback, delay);
+  introTimers.push(timer);
+  return timer;
+}
+
+function clearIntroTimers() {
+  while (introTimers.length) window.clearTimeout(introTimers.pop());
+}
+
+function revealIntroLetter() {
+  const letter = $('#letterDelivery');
+  if (!letter) return;
+  letter.hidden = false;
+  requestAnimationFrame(() => letter.classList.add('is-visible'));
+  playChime('soft');
+}
+
+function resetPngDinoStage() {
+  const stage = $('#dinoStage');
+  const run = $('#dinoRun');
+  const deliver = $('#dinoDeliver');
+  const exit = $('#dinoExit');
+  clearIntroTimers();
+  stage?.classList.remove('is-arrived', 'is-leaving');
+  [run, deliver, exit].forEach((img) => img?.classList.remove('is-visible', 'is-running', 'is-delivering', 'is-exiting'));
+  const letter = $('#letterDelivery');
+  if (letter) {
+    letter.hidden = true;
+    letter.classList.remove('is-visible');
+  }
+}
+
+function startPngIntro() {
+  if (introStarted) return;
+  introStarted = true;
+
+  const stage = $('#dinoStage');
+  const run = $('#dinoRun');
+  const deliver = $('#dinoDeliver');
+  const exit = $('#dinoExit');
+  if (!stage || !run || !deliver || !exit) {
+    revealIntroLetter();
+    return;
+  }
+
+  resetPngDinoStage();
+
+  run.classList.add('is-visible', 'is-running');
+
+  introLater(3750, () => {
+    run.classList.remove('is-visible', 'is-running');
+    stage.classList.add('is-arrived');
+    deliver.classList.add('is-visible', 'is-delivering');
+  });
+
+  // La carta permanece oculta hasta que la pose de entrega ya está en pantalla.
+  introLater(4750, () => {
+    revealIntroLetter();
+  });
+
+  introLater(6250, () => {
+    deliver.classList.remove('is-visible', 'is-delivering');
+    stage.classList.remove('is-arrived');
+    stage.classList.add('is-leaving');
+    exit.classList.add('is-visible', 'is-exiting');
+  });
+
+  introLater(9050, () => {
+    exit.classList.remove('is-visible', 'is-exiting');
+    stage.classList.remove('is-leaving');
+  });
+}
+
+function setupPngIntro() {
+  const assets = [
+    $('.intro-bg-image'),
+    $('#dinoRun'),
+    $('#dinoDeliver'),
+    $('#dinoExit')
+  ].filter(Boolean);
+
+  const ready = Promise.all(assets.map((img) => {
+    if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+    if (typeof img.decode === 'function') {
+      return img.decode().catch(() => new Promise((resolve) => {
+        img.addEventListener('load', resolve, { once: true });
+        img.addEventListener('error', resolve, { once: true });
+      }));
+    }
+    return new Promise((resolve) => {
+      img.addEventListener('load', resolve, { once: true });
+      img.addEventListener('error', resolve, { once: true });
+    });
+  }));
+
+  Promise.race([
+    ready,
+    new Promise((resolve) => window.setTimeout(resolve, 1400))
+  ]).then(() => introLater(180, startPngIntro));
+}
+
+setupPngIntro();
 
 $('#skipIntroBtn').onclick = () => {
-  $('#letterDelivery').hidden = false;
-  $('#letterDelivery').classList.add('is-visible');
+  clearIntroTimers();
+  introStarted = true;
+  const stage = $('#dinoStage');
+  stage?.classList.remove('is-arrived');
+  stage?.classList.add('is-leaving');
+  [$('#dinoRun'), $('#dinoDeliver'), $('#dinoExit')].forEach((img) => {
+    img?.classList.remove('is-visible', 'is-running', 'is-delivering', 'is-exiting');
+  });
+  revealIntroLetter();
 };
 $('#openLetterBtn').onclick = () => { playChime('soft'); showScreen('#letterScreen'); };
 $('#continueToLoginBtn').onclick = () => { playChime('soft'); showScreen('#authScreen'); };
