@@ -2,7 +2,7 @@ name: Apply DinoCupones PNG intro patch
 on:
   push:
     paths:
-      - ".patch/dinopatch.tar.gz"
+      - ".patch/READY"
 permissions:
   contents: write
 jobs:
@@ -10,10 +10,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Apply prepared patch
+      - name: Rebuild and verify prepared patch
         shell: bash
         run: |
-          tar -xzf .patch/dinopatch.tar.gz -C .
+          cat .patch/chunks/patch.b64.* | tr -d '\n' | base64 -d > /tmp/dinopatch.tar.gz
+          tar -tzf /tmp/dinopatch.tar.gz >/dev/null
+          tar -xzf /tmp/dinopatch.tar.gz -C .
           rm -rf .patch
           rm -f .github/workflows/apply-intro-patch.yml
       - name: Commit final application files
