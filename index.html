@@ -27,6 +27,16 @@
     />
     <div class="intro-color-wash" aria-hidden="true"></div>
     <div class="intro-vignette" aria-hidden="true"></div>
+    <div class="intro-ambient" aria-hidden="true">
+      <span class="ambient-orb orb-one"></span>
+      <span class="ambient-orb orb-two"></span>
+      <span class="ambient-leaf leaf-one"></span>
+      <span class="ambient-leaf leaf-two"></span>
+      <span class="ambient-leaf leaf-three"></span>
+      <span class="ambient-heart heart-one">♥</span>
+      <span class="ambient-heart heart-two">♥</span>
+      <span class="ambient-heart heart-three">♥</span>
+    </div>
     <div class="intro-sparkles" aria-hidden="true">
       <i></i><i></i><i></i><i></i><i></i><i></i>
     </div>
@@ -47,12 +57,17 @@
     </div>
 
     <div id="letterDelivery" class="letter-delivery" hidden>
-      <span class="delivery-kicker">Entrega completada 💜</span>
+      <div class="delivery-complete">
+        <span class="delivery-check">✓</span>
+        <span>Entrega completada</span>
+        <b>💜</b>
+      </div>
       <button id="openLetterBtn" class="letter-card" type="button" aria-label="Abrir carta">
+        <span class="letter-front">Una carta para ti</span>
         <span class="letter-seal">❤</span>
-        <span class="letter-front">Para ti</span>
+        <span class="letter-microcopy">Tócala para descubrirla</span>
       </button>
-      <p>Toca la carta para abrirla</p>
+      <p class="letter-hint">Toca la carta para abrirla</p>
     </div>
   </section>
 
