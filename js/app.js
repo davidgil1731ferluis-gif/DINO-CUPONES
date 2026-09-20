@@ -906,6 +906,51 @@ $('#closeMuralViewerBtn').onclick = () => {
   $('#muralViewerDialog').close();
 };
 
+function renderNotificationPermissionState() {
+  const button = $('#enableNotificationsBtn');
+  const label = $('#notificationPermissionText');
+  if (!button || !label) return;
+
+  if (!firebaseReady) {
+    button.disabled = true;
+    button.textContent = 'Demo';
+    label.textContent = 'Se activará cuando conectemos Firebase.';
+    return;
+  }
+  if (!('Notification' in window)) {
+    button.disabled = true;
+    button.textContent = 'No disponible';
+    label.textContent = 'Este navegador no admite notificaciones web.';
+    return;
+  }
+  if (Notification.permission === 'granted') {
+    button.disabled = true;
+    button.textContent = 'Activas';
+    label.textContent = 'Recibirás nuevos cupones y mensajes.';
+    return;
+  }
+  if (Notification.permission === 'denied') {
+    button.disabled = true;
+    button.textContent = 'Bloqueadas';
+    label.textContent = 'Debes habilitarlas desde los permisos del navegador.';
+    return;
+  }
+  button.disabled = false;
+  button.textContent = 'Activar';
+  label.textContent = 'Actívalas para recibir nuevos cupones y mensajes.';
+}
+
+$('#enableNotificationsBtn').onclick = async () => {
+  try {
+    const enabled = await requestPushPermission(currentUser.uid);
+    renderNotificationPermissionState();
+    toast(enabled ? 'Notificaciones activadas 💜' : 'No se activaron las notificaciones.');
+  } catch (error) {
+    console.error(error);
+    toast('No se pudieron activar las notificaciones.');
+  }
+};
+
 $('#notificationBtn').onclick = () => toggleDrawer(true);
 $('#closeNotificationsBtn').onclick = () => toggleDrawer(false);
 $('#drawerBackdrop').onclick = () => toggleDrawer(false);
@@ -1038,8 +1083,8 @@ function renderAdminUsers() {
 }
 
 function renderAdminMedia() {
-  $('#adminMediaList').innerHTML = mural.length
-    ? mural.map((item) => `
+  $('#adminMediaList').innerHTML = adminMural.length
+    ? adminMural.map((item) => `
       <div class="admin-row">
         <div>
           <strong>${escapeHtml(item.fileName || 'Recuerdo')}</strong>
@@ -1099,3 +1144,12 @@ function renderAdminCoupons() {
 if (!firebaseReady) {
   console.info('DinoCupones está ejecutándose en modo demo. Configura js/firebase-config.js para conectar Firebase.');
 }
+
+
+let lastVisibilityRefresh = 0;
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible' || !currentUser || !$('#appScreen')?.classList.contains('is-visible')) return;
+  if (Date.now() - lastVisibilityRefresh < 30000) return;
+  lastVisibilityRefresh = Date.now();
+  refreshAll().catch((error) => console.warn('No se pudo actualizar al volver a la app', error));
+});
