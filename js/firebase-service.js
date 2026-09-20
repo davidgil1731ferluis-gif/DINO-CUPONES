@@ -460,19 +460,23 @@ export async function unlinkPair({pairId,uid}) {
   }
 
   const pairRef = fsMod.doc(db,'pairs',pairId);
-  const snap = await fsMod.getDoc(pairRef);
-  if (!snap.exists()) throw new Error('No se encontró el DinoDúo.');
 
-  const pair = snap.data();
-  if (pair.active === false || !pair.memberUids?.includes(uid)) {
-    throw new Error('No puedes cerrar este vínculo.');
-  }
+  await fsMod.runTransaction(db, async (transaction) => {
+    const snap = await transaction.get(pairRef);
+    if (!snap.exists()) throw new Error('No se encontró el DinoDúo.');
 
-  await fsMod.updateDoc(pairRef,{
-    active:false,
-    unlinkedBy:uid,
-    unlinkedAt:fsMod.serverTimestamp()
+    const pair = snap.data();
+    if (pair.active === false || !pair.memberUids?.includes(uid)) {
+      throw new Error('No puedes cerrar este vínculo.');
+    }
+
+    transaction.update(pairRef,{
+      active:false,
+      unlinkedBy:uid,
+      unlinkedAt:fsMod.serverTimestamp()
+    });
   });
+
   return true;
 }
 
