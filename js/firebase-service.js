@@ -49,6 +49,12 @@ function asDate(value) {
 function sortNewest(items) {
   return items.sort((a,b)=>asDate(b.createdAt)-asDate(a.createdAt));
 }
+function normalizeCoupon(data,id) {
+  const expiry = asDate(data.expiresAt);
+  let status = data.status || 'active';
+  if (status !== 'completed' && expiry < new Date()) status = 'expired';
+  return {id,...data,expiresAt:expiry,status,createdAt:asDate(data.createdAt)};
+}
 function randomCode() {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   const bytes = new Uint8Array(6);
@@ -169,33 +175,28 @@ export async function acceptPairInvite({uid,displayName,code}) {
 
 export async function listCoupons(uid){
   if(!configured) {
-    return demoCoupons
+    return sortNewest(demoCoupons
       .filter(c=>c.assignedToUid===uid)
-      .map(c=>({...c}));
+      .map(c=>normalizeCoupon(c,c.id)));
   }
   const snap = await fsMod.getDocs(
     fsMod.query(fsMod.collection(db,'coupons'),fsMod.where('assignedToUid','==',uid))
   );
-  return sortNewest(snap.docs.map(d=>{
-    const data=d.data();
-    const expiry=asDate(data.expiresAt);
-    let status=data.status||'active';
-    return {id:d.id,...data,expiresAt:expiry,status,createdAt:asDate(data.createdAt)};
-  }));
+  return sortNewest(snap.docs.map(d=>normalizeCoupon(d.data(),d.id)));
 }
 
 export async function listSentCoupons(uid){
-  if(!configured) return sortNewest(demoCoupons.filter(c=>c.createdByUid===uid).map(c=>({...c})));
+  if(!configured) return sortNewest(demoCoupons.filter(c=>c.createdByUid===uid).map(c=>normalizeCoupon(c,c.id)));
   const snap = await fsMod.getDocs(
     fsMod.query(fsMod.collection(db,'coupons'),fsMod.where('createdByUid','==',uid))
   );
-  return sortNewest(snap.docs.map(d=>({id:d.id,...d.data(),expiresAt:asDate(d.data().expiresAt),createdAt:asDate(d.data().createdAt)})));
+  return sortNewest(snap.docs.map(d=>normalizeCoupon(d.data(),d.id)));
 }
 
 export async function listAllCoupons(){
-  if(!configured) return sortNewest(demoCoupons.map(c=>({...c})));
+  if(!configured) return sortNewest(demoCoupons.map(c=>normalizeCoupon(c,c.id)));
   const snap=await fsMod.getDocs(fsMod.collection(db,'coupons'));
-  return sortNewest(snap.docs.map(d=>({id:d.id,...d.data(),expiresAt:asDate(d.data().expiresAt),createdAt:asDate(d.data().createdAt)})));
+  return sortNewest(snap.docs.map(d=>normalizeCoupon(d.data(),d.id)));
 }
 
 export async function createCoupon(payload){
