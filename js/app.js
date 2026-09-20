@@ -431,7 +431,191 @@ function renderHero() {
   $('#nextCouponTitle').textContent = active[0]?.title || 'Crear un nuevo recuerdo';
 }
 
-$$('.tab-btn').forEach((button) => {
+
+function renderPairWorkspace() {
+  const setup = $('#pairSetupView');
+  const connected = $('#pairConnectedView');
+  if (!setup || !connected) return;
+
+  const hasPair = Boolean(currentPair && partnerUid);
+  setup.hidden = hasPair;
+  connected.hidden = !hasPair;
+
+  if (!hasPair) return;
+
+  const myName = profile?.displayName || 'Tú';
+  $('#pairMeName').textContent = myName;
+  $('#pairPartnerName').textContent = partnerName;
+  $('#pairCouponRecipientName').textContent = partnerName;
+  $('#pairSentRecipientName').textContent = partnerName;
+  $('#pairAvatarMe').textContent = myName.charAt(0).toUpperCase();
+  $('#pairAvatarPartner').textContent = partnerName.charAt(0).toUpperCase();
+
+  renderPairConversation();
+  renderSentCoupons();
+}
+
+function renderPairConversation() {
+  const box = $('#pairConversation');
+  if (!box) return;
+
+  if (!pairMessages.length) {
+    box.innerHTML = '<div class="pair-empty"><strong>Aún no hay mensajes.</strong><span>El primero puede ser algo pequeño y bonito. 💌</span></div>';
+    return;
+  }
+
+  box.innerHTML = pairMessages.map((message) => {
+    const mine = message.senderUid === currentUser.uid;
+    const sender = mine ? 'Tú' : (message.senderName || partnerName || 'Tu persona');
+    return '<article class="pair-message ' + (mine ? 'is-mine' : 'is-theirs') + '">' +
+      '<small>' + escapeHtml(sender) + '</small>' +
+      '<strong>' + escapeHtml(message.title || 'Un mensaje para ti') + '</strong>' +
+      '<p>' + escapeHtml(message.body || '') + '</p>' +
+      '<time>' + timeAgo(message.createdAt || new Date()) + '</time>' +
+    '</article>';
+  }).join('');
+
+  requestAnimationFrame(() => {
+    box.scrollTop = box.scrollHeight;
+  });
+}
+
+function renderSentCoupons() {
+  const box = $('#pairSentCoupons');
+  if (!box) return;
+
+  if (!sentCoupons.length) {
+    box.innerHTML = '<div class="pair-empty compact"><strong>Todavía no has enviado cupones.</strong><span>Cuando regales uno aparecerá aquí.</span></div>';
+    return;
+  }
+
+  box.innerHTML = sentCoupons.slice(0, 8).map((coupon) => {
+    const expiry = new Date(coupon.expiresAt);
+    const derivedStatus = coupon.status !== 'completed' && expiry < new Date() ? 'expired' : coupon.status;
+    return '<article class="sent-coupon-row">' +
+      '<span class="sent-coupon-emoji">' + (coupon.emoji || '💜') + '</span>' +
+      '<div><strong>' + escapeHtml(coupon.title) + '</strong>' +
+      '<small>' + labelStatus(derivedStatus) + ' · vence ' + fmtDate(coupon.expiresAt) + '</small></div>' +
+      '<span class="status-dot ' + derivedStatus + '"></span>' +
+    '</article>';
+  }).join('');
+}
+
+$('#generatePairCodeBtn').onclick = async () => {
+  const button = $('#generatePairCodeBtn');
+  button.disabled = true;
+  try {
+    const code = await createPairInvite({
+      uid: currentUser.uid,
+      displayName: profile?.displayName || 'Dino'
+    });
+    $('#pairInviteCode').textContent = code;
+    $('#pairInviteCodeBox').hidden = false;
+    playChime('soft');
+    toast('Código de vínculo generado.');
+  } catch (error) {
+    console.error(error);
+    toast(error?.message || 'No se pudo generar el código.');
+  } finally {
+    button.disabled = false;
+  }
+};
+
+$('#copyPairCodeBtn').onclick = async () => {
+  const code = $('#pairInviteCode').textContent.trim();
+  if (!code || code === '------') return;
+  try {
+    await navigator.clipboard.writeText(code);
+    toast('Código copiado 💜');
+  } catch {
+    toast('Código: ' + code);
+  }
+};
+
+$('#pairCodeInput').addEventListener('input', (event) => {
+  event.target.value = event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+});
+
+$('#pairAcceptForm').onsubmit = async (event) => {
+  event.preventDefault();
+  const submitter = event.submitter;
+  submitter.disabled = true;
+  try {
+    await acceptPairInvite({
+      uid: currentUser.uid,
+      displayName: profile?.displayName || 'Dino',
+      code: $('#pairCodeInput').value
+    });
+    event.target.reset();
+    await refreshAll();
+    playChime('complete');
+    toast('DinoDúo conectado 💞');
+  } catch (error) {
+    console.error(error);
+    toast(error?.message || 'No se pudo completar el vínculo.');
+  } finally {
+    submitter.disabled = false;
+  }
+};
+
+$('#pairCouponForm').onsubmit = async (event) => {
+  event.preventDefault();
+  if (!currentPair || !partnerUid) return toast('Primero vincula las dos cuentas.');
+
+  const submitter = event.submitter;
+  submitter.disabled = true;
+  try {
+    await createCoupon({
+      pairId: currentPair.id,
+      createdByUid: currentUser.uid,
+      createdByName: profile?.displayName || 'Dino',
+      assignedToUid: partnerUid,
+      assignedToName: partnerName,
+      title: $('#pairCouponTitle').value.trim(),
+      activity: $('#pairCouponActivity').value.trim(),
+      expiresAt: new Date($('#pairCouponExpiry').value)
+    });
+    event.target.reset();
+    await refreshAll();
+    playChime('complete');
+    toast('DinoCupón enviado a ' + partnerName + ' 🎟️');
+  } catch (error) {
+    console.error(error);
+    toast('No se pudo enviar el cupón.');
+  } finally {
+    submitter.disabled = false;
+  }
+};
+
+$('#pairMessageForm').onsubmit = async (event) => {
+  event.preventDefault();
+  if (!currentPair || !partnerUid) return toast('Primero vincula las dos cuentas.');
+
+  const submitter = event.submitter;
+  submitter.disabled = true;
+  try {
+    await sendMessage({
+      pairId: currentPair.id,
+      senderUid: currentUser.uid,
+      senderName: profile?.displayName || 'Dino',
+      targetUid: partnerUid,
+      title: $('#pairMessageTitle').value.trim() || 'Un mensaje para ti 💜',
+      body: $('#pairMessageBody').value.trim()
+    });
+    event.target.reset();
+    pairMessages = await listPairMessages(currentPair.id);
+    renderPairConversation();
+    playChime('soft');
+    toast('Mensaje enviado a ' + partnerName + '.');
+  } catch (error) {
+    console.error(error);
+    toast('No se pudo enviar el mensaje.');
+  } finally {
+    submitter.disabled = false;
+  }
+};
+
+$('.tab-btn').forEach((button) => {
   button.onclick = () => {
     const tab = button.dataset.tab;
     $$('.tab-btn').forEach((item) => item.classList.toggle('is-active', item === button));
