@@ -767,14 +767,33 @@ export async function listMessages(uid,activePairId=null){
   })));
 }
 
-export async function listPairMessages(pairId){
+export async function listPairMessages(pairId,uid=null){
   if(configured) await ensureFirebase();
   if(!pairId) return [];
   if(!configured) return sortNewest(demoMessages.filter(m=>m.pairId===pairId).map(m=>({...m}))).reverse();
-  const snap=await fsMod.getDocs(
-    fsMod.query(fsMod.collection(db,'messages'),fsMod.where('pairId','==',pairId))
-  );
-  return snap.docs
+
+  const currentUid=uid||auth.currentUser?.uid;
+  if(!currentUid) return [];
+
+  const base=fsMod.collection(db,'messages');
+  const [receivedSnap,sentSnap]=await Promise.all([
+    fsMod.getDocs(fsMod.query(
+      base,
+      fsMod.where('pairId','==',pairId),
+      fsMod.where('targetUid','==',currentUid)
+    )),
+    fsMod.getDocs(fsMod.query(
+      base,
+      fsMod.where('pairId','==',pairId),
+      fsMod.where('senderUid','==',currentUid)
+    ))
+  ]);
+
+  const unique=new Map();
+  receivedSnap.docs.forEach(doc=>unique.set(doc.id,doc));
+  sentSnap.docs.forEach(doc=>unique.set(doc.id,doc));
+
+  return [...unique.values()]
     .map(d=>({id:d.id,...d.data(),createdAt:asDate(d.data().createdAt)}))
     .sort((a,b)=>asDate(a.createdAt)-asDate(b.createdAt));
 }
