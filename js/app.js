@@ -589,6 +589,24 @@ $('#accountSettingsBtn').onclick = () => {
 
 $('#closeAccountDialogBtn').onclick = () => $('#accountDialog').close();
 
+$('#updateAppBtn').onclick = async () => {
+  const button = $('#updateAppBtn');
+  setButtonBusy(button,true,'Buscando actualización...');
+  try {
+    if (window.DinoIntro?.checkForUpdate) {
+      await window.DinoIntro.checkForUpdate(true);
+    } else {
+      const registration = await navigator.serviceWorker?.getRegistration('./');
+      if (registration) await registration.update();
+      window.location.reload();
+    }
+  } catch (error) {
+    console.error(error);
+    toast('No se pudo comprobar la actualización.');
+    setButtonBusy(button,false);
+  }
+};
+
 $('#sendMyResetBtn').onclick = async () => {
   const email = profile?.email || currentUser?.email;
   if (!email) return toast('No se encontró el correo de la cuenta.');
@@ -732,7 +750,7 @@ async function refreshAll(pairOverride = undefined) {
       listMural(currentUser.uid, currentPair?.id || null),
       listMessages(currentUser.uid, currentPair?.id || null),
       currentPair ? listSentCoupons(currentUser.uid, currentPair.id) : Promise.resolve([]),
-      currentPair ? listPairMessages(currentPair.id) : Promise.resolve([])
+      currentPair ? listPairMessages(currentPair.id,currentUser.uid) : Promise.resolve([])
     ]);
 
   if (couponsResult.status === 'fulfilled') coupons = couponsResult.value;
@@ -1107,9 +1125,16 @@ $('#pairMessageForm').onsubmit = async (event) => {
       title: $('#pairMessageTitle').value.trim() || 'Un mensaje para ti 💜',
       body: $('#pairMessageBody').value.trim()
     });
+
     event.target.reset();
-    pairMessages = await listPairMessages(currentPair.id);
-    renderPairConversation();
+
+    try {
+      pairMessages = await listPairMessages(currentPair.id,currentUser.uid);
+      renderPairConversation();
+    } catch (refreshError) {
+      console.warn('El mensaje se envió, pero la conversación todavía no pudo refrescarse.',refreshError);
+    }
+
     playChime('soft');
     toast('Mensaje enviado a ' + partnerName + '.');
   } catch (error) {
