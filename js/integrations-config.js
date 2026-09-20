@@ -4,7 +4,7 @@ export const integrationsConfig = {
 
   // Datos públicos de Cloudinary.
   cloudinary: {
-    cloudName: 'TU_CLOUDINARY_CLOUD_NAME',
+    cloudName: 'kyeuesop',
     uploadPreset: 'dinocupones_signed'
   },
 
