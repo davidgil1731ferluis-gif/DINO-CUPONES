@@ -100,7 +100,30 @@
     revealLetter();
   }
 
+  async function registerAppServiceWorker() {
+    if (!('serviceWorker' in navigator)) return;
+
+    const hadController = Boolean(navigator.serviceWorker.controller);
+    let refreshing = false;
+
+    if (hadController) {
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (refreshing) return;
+        refreshing = true;
+        window.location.reload();
+      }, { once: true });
+    }
+
+    try {
+      const registration = await navigator.serviceWorker.register('./sw.js', { scope: './' });
+      await registration.update();
+    } catch (error) {
+      console.warn('No se pudo actualizar la PWA de DinoCupones.', error);
+    }
+  }
+
   function setup() {
+    registerAppServiceWorker();
     const assets = [
       $('.intro-bg-image'),
       $('#dinoRun'),
