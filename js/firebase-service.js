@@ -17,6 +17,30 @@ let auth = null;
 let db = null;
 let firebaseInitPromise = null;
 let oneSignalPromise = null;
+const SESSION_PREF_KEY = 'dinocupones_keep_session_v1';
+
+function keepSessionPreferred() {
+  try {
+    return localStorage.getItem(SESSION_PREF_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+async function applyAuthPersistence(keepSession) {
+  if (!auth || !authMod) return;
+  await authMod.setPersistence(
+    auth,
+    keepSession ? authMod.browserLocalPersistence : authMod.browserSessionPersistence
+  );
+  try {
+    localStorage.setItem(SESSION_PREF_KEY, keepSession ? 'true' : 'false');
+  } catch {}
+}
+
+export function getKeepSessionPreference() {
+  return keepSessionPreferred();
+}
 
 async function ensureFirebase() {
   if (!configured) return false;
@@ -33,7 +57,7 @@ async function ensureFirebase() {
     fsMod = firestoreSdk;
     app = appMod.initializeApp(firebaseConfig);
     auth = authMod.getAuth(app);
-    await authMod.setPersistence(auth, authMod.browserSessionPersistence);
+    await applyAuthPersistence(keepSessionPreferred());
     db = fsMod.getFirestore(app);
     return true;
   }).catch((error) => {
@@ -329,8 +353,11 @@ export function onAuth(callback){
     unsubscribe();
   };
 }
-export async function login(email,password){
-  if(configured) await ensureFirebase();
+export async function login(email,password,keepSession=false){
+  if(configured) {
+    await ensureFirebase();
+    await applyAuthPersistence(Boolean(keepSession));
+  }
   if(!configured) {
     const normalizedEmail=String(email||'').trim().toLowerCase();
 
