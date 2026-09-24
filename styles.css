@@ -280,8 +280,8 @@ img,video{max-width:100%}
 }
 
 @keyframes introBackgroundPan{
-  from{background-position:center 58%;background-size:108% auto}
-  to{background-position:center 50%;background-size:116% auto}
+  from{background-position:center 58%}
+  to{background-position:center 50%}
 }
 @keyframes introLandscape{
   from{transform:scale(1.07) translate3d(-.4%,0,0)}
