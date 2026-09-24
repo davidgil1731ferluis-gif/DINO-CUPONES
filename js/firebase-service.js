@@ -694,6 +694,8 @@ export async function createCoupon(payload){
   const push = await notifyPush({
     targetUid: normalized.assignedToUid,
     pairId: normalized.pairId || null,
+    kind: 'coupon',
+    couponId: ref.id,
     title: 'Nuevo DinoCupón 🦕',
     body: (normalized.createdByName || 'Tu persona') + ' te regaló “' + normalized.title + '”.'
   });
@@ -934,6 +936,8 @@ export async function sendMessage(payload){
   const push = await notifyPush({
     targetUid: payload.targetUid,
     pairId: payload.pairId || null,
+    kind: 'message',
+    messageId: ref.id,
     title: payload.title || ((payload.senderName || 'Tu persona') + ' te escribió 💌'),
     body: payload.body || 'Tienes un nuevo mensaje.'
   });
