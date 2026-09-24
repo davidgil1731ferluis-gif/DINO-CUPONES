@@ -47,7 +47,14 @@ img,video{max-width:100%}
 .intro-screen{
   overflow:hidden;
   isolation:isolate;
-  background:#ead9f7;
+  background-color:#ead9f7;
+  background-image:
+    linear-gradient(180deg,rgba(255,239,248,.06),rgba(51,28,58,.08)),
+    url("./assets/romantic-jungle-bg.webp?v=20260924-1");
+  background-size:cover;
+  background-position:center 54%;
+  background-repeat:no-repeat;
+  animation:introBackgroundPan 14s ease-out both;
 }
 .intro-bg-image{
   position:absolute;
@@ -58,7 +65,8 @@ img,video{max-width:100%}
   max-width:none;
   object-fit:cover;
   object-position:center 56%;
-  filter:saturate(1.18) contrast(1.06) brightness(.98);
+  filter:saturate(1.2) contrast(1.06) brightness(.98);
+  opacity:.58;
   transform:scale(1.025);
   animation:introLandscape 12s ease-out both;
   will-change:transform;
@@ -271,6 +279,10 @@ img,video{max-width:100%}
   box-shadow:0 11px 24px rgba(185,72,145,.3),inset 0 1px 0 rgba(255,255,255,.35);
 }
 
+@keyframes introBackgroundPan{
+  from{background-position:center 58%;background-size:108% auto}
+  to{background-position:center 50%;background-size:116% auto}
+}
 @keyframes introLandscape{
   from{transform:scale(1.07) translate3d(-.4%,0,0)}
   to{transform:scale(1.025) translate3d(.4%,-.3%,0)}
@@ -2321,4 +2333,166 @@ button:focus-visible,
 @media(max-width:520px){
   .push-test-card{flex-direction:column}
   .push-test-card .mini-btn{width:100%}
+}
+
+
+/* =========================================================
+   KEEP SESSION + DINOMURAL WIDGET
+   ========================================================= */
+.remember-session-row{
+  display:flex!important;
+  align-items:flex-start;
+  gap:11px;
+  padding:12px 13px;
+  border:1px solid #eadbea;
+  border-radius:16px;
+  background:rgba(255,255,255,.7);
+  cursor:pointer;
+}
+.remember-session-row input{
+  width:18px!important;
+  height:18px!important;
+  flex:0 0 18px;
+  margin-top:2px;
+  accent-color:#9c61df;
+}
+.remember-session-row>span{
+  display:block;
+  min-width:0;
+}
+.remember-session-row strong{
+  display:block;
+  color:#5d3a66;
+  font-size:.8rem;
+}
+.remember-session-row small{
+  display:block;
+  margin-top:3px;
+  color:#8f7b92;
+  font-size:.69rem;
+  line-height:1.45;
+}
+
+.mural-widget{
+  margin:0 auto 18px;
+  width:min(1180px,calc(100% - 32px));
+}
+.mural-widget[hidden]{display:none!important}
+.mural-widget-button{
+  width:100%;
+  display:grid;
+  grid-template-columns:180px minmax(0,1fr);
+  gap:18px;
+  align-items:stretch;
+  padding:0;
+  overflow:hidden;
+  border:1px solid rgba(223,203,230,.9);
+  border-radius:24px;
+  background:
+    radial-gradient(circle at 78% 10%,rgba(214,188,255,.26),transparent 30%),
+    linear-gradient(145deg,#fffefc,#fff5fb 72%,#f5efff);
+  box-shadow:0 18px 46px rgba(89,55,101,.12);
+  text-align:left;
+  cursor:pointer;
+}
+.mural-widget-photo{
+  position:relative;
+  min-height:150px;
+  overflow:hidden;
+  background:#eee2f1;
+}
+.mural-widget-photo img{
+  width:100%;
+  height:100%;
+  min-height:150px;
+  object-fit:cover;
+  display:block;
+  transition:opacity .35s ease,transform 5.2s ease;
+  transform:scale(1.03);
+}
+.mural-widget-button:hover .mural-widget-photo img{transform:scale(1.08)}
+.mural-widget-badge{
+  position:absolute;
+  left:12px;
+  top:12px;
+  padding:7px 10px;
+  border-radius:999px;
+  background:rgba(255,250,253,.88);
+  color:#653d70;
+  font-size:.66rem;
+  font-weight:900;
+  box-shadow:0 7px 18px rgba(62,36,70,.12);
+  backdrop-filter:blur(10px);
+}
+.mural-widget-copy{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  min-width:0;
+  padding:18px 22px 18px 0;
+}
+.mural-widget-copy strong{
+  margin-top:8px;
+  color:#43264f;
+  font-family:"Playfair Display",serif;
+  font-size:clamp(1.25rem,2.4vw,2rem);
+  line-height:1.05;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.mural-widget-copy small{
+  margin-top:8px;
+  color:#846f88;
+  font-size:.78rem;
+}
+.mural-widget-dots{
+  display:flex;
+  gap:6px;
+  margin-top:14px;
+}
+.mural-widget-dots i{
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:#ddcfe1;
+  transition:.25s ease;
+}
+.mural-widget-dots i.is-active{
+  width:22px;
+  border-radius:999px;
+  background:linear-gradient(90deg,#9d65ec,#e977b5);
+}
+
+@media(max-width:760px){
+  .intro-screen{
+    background-position:center center;
+    background-size:auto 100%;
+  }
+  .mural-widget{
+    width:calc(100% - 20px);
+    margin-bottom:12px;
+  }
+  .mural-widget-button{
+    grid-template-columns:112px minmax(0,1fr);
+    gap:12px;
+    border-radius:19px;
+  }
+  .mural-widget-photo,
+  .mural-widget-photo img{
+    min-height:112px;
+  }
+  .mural-widget-copy{
+    padding:12px 12px 12px 0;
+  }
+  .mural-widget-copy strong{
+    font-size:1.05rem;
+  }
+  .mural-widget-copy .eyebrow{
+    font-size:.58rem;
+    letter-spacing:.12em;
+  }
+  .mural-widget-copy small{
+    font-size:.65rem;
+  }
 }
