@@ -125,6 +125,13 @@
             <button id="togglePasswordBtn" type="button" class="icon-btn" aria-label="Mostrar contraseña">◉</button>
           </div>
         </label>
+        <label class="remember-session-row">
+          <input id="keepSessionCheckbox" type="checkbox" />
+          <span>
+            <strong>Mantener mi sesión iniciada</strong>
+            <small>No volver a pedir la contraseña al cerrar y abrir DinoCupones en este dispositivo.</small>
+          </span>
+        </label>
         <button class="primary-btn wide" type="submit">Ingresar</button>
       </form>
       <button class="text-btn install-inline-btn" data-install-app type="button" hidden>📲 Instalar DinoCupones en este dispositivo</button>
@@ -215,6 +222,21 @@
           <strong id="nextCouponTitle">Cargando...</strong>
         </div>
       </section>
+
+      <aside id="muralWidget" class="mural-widget" hidden aria-label="Widget de recuerdos del DinoMural">
+        <button id="muralWidgetOpenBtn" class="mural-widget-button" type="button">
+          <div class="mural-widget-photo">
+            <img id="muralWidgetImage" src="" alt="Recuerdo del DinoMural" />
+            <span class="mural-widget-badge">📸 DinoWidget</span>
+          </div>
+          <div class="mural-widget-copy">
+            <span class="eyebrow">Un recuerdo de ustedes</span>
+            <strong id="muralWidgetCaption">DinoMural</strong>
+            <small id="muralWidgetMeta">Toca para abrir el recuerdo.</small>
+            <div id="muralWidgetDots" class="mural-widget-dots" aria-hidden="true"></div>
+          </div>
+        </button>
+      </aside>
 
       <nav class="tabbar" aria-label="Navegación principal">
         <button class="tab-btn is-active" data-tab="coupons" type="button"><span>🎟️</span>Cupones</button>
