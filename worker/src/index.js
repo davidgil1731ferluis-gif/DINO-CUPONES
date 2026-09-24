@@ -272,6 +272,14 @@ async function sendOneSignalNotification(request, auth, env) {
   const pairId = body.pairId || null;
   const title = String(body.title || 'DinoCupones').slice(0, 90);
   const message = String(body.body || 'Tienes una novedad 💜').slice(0, 300);
+  const kind = String(body.kind || 'general');
+  const itemId = String(body.couponId || body.messageId || '');
+  const appBase = String(env.APP_URL || '');
+  const tab = kind === 'coupon' ? 'coupons' : (kind === 'message' ? 'pair' : '');
+  const notificationUrl = tab
+    ? appBase + (appBase.includes('?') ? '&' : '?') + 'tab=' + encodeURIComponent(tab)
+    : appBase;
+  const iconUrl = appBase.replace(/\/?$/, '/') + 'assets/icons/dinocupones-192.png';
 
   if (!targetUid) throw new Error('TARGET_REQUIRED');
 
@@ -306,7 +314,10 @@ async function sendOneSignalNotification(request, auth, env) {
       app_id: env.ONESIGNAL_APP_ID,
       headings: { en: title, es: title },
       contents: { en: message, es: message },
-      url: env.APP_URL,
+      url: notificationUrl,
+      web_url: notificationUrl,
+      chrome_web_icon: iconUrl,
+      data: { kind, itemId, pairId: pairId || null },
       ...targeting
     })
   });
