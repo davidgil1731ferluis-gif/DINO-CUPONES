@@ -8,11 +8,17 @@
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "display_override": ["standalone", "minimal-ui"],
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
   "orientation": "any",
   "background_color": "#fff7fb",
   "theme_color": "#f5d9f1",
-  "categories": ["lifestyle", "social"],
+  "categories": [
+    "lifestyle",
+    "social"
+  ],
   "prefer_related_applications": false,
   "icons": [
     {
@@ -32,6 +38,47 @@
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "DinoMural",
+      "short_name": "Mural",
+      "description": "Abrir directamente sus recuerdos compartidos.",
+      "url": "./?tab=mural",
+      "icons": [
+        {
+          "src": "./assets/icons/dinocupones-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "DinoDúo",
+      "short_name": "Nosotros",
+      "description": "Abrir el espacio compartido del DinoDúo.",
+      "url": "./?tab=pair",
+      "icons": [
+        {
+          "src": "./assets/icons/dinocupones-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Cupones",
+      "short_name": "Cupones",
+      "description": "Abrir tus DinoCupones.",
+      "url": "./?tab=coupons",
+      "icons": [
+        {
+          "src": "./assets/icons/dinocupones-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     }
   ]
 }
