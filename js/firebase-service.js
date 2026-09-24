@@ -4,7 +4,7 @@ import {
   cloudinaryReady,
   oneSignalReady,
   workerReady
-} from './integrations-config.js?v=20260920-13';
+} from './integrations-config.js?v=20260924-1';
 
 const V = '12.19.0';
 const configured = firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('TU_');
