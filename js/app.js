@@ -4,6 +4,7 @@ import {
   pushReady,
   onAuth,
   login,
+  getKeepSessionPreference,
   registerAccount,
   logout,
   resetPassword,
@@ -57,6 +58,9 @@ let pairSyncInFlight = false;
 let filter = 'active';
 let couponView = 'received';
 let localDemoMedia = [];
+let muralWidgetTimer = null;
+let muralWidgetIndex = 0;
+let muralWidgetCurrentId = null;
 let enterAppPromise = null;
 let enteredUserUid = null;
 const screens = ['#introScreen', '#letterScreen', '#authScreen', '#appScreen'];
@@ -530,7 +534,11 @@ $('#loginForm').onsubmit = async (event) => {
   const button = submitButton(event);
   setButtonBusy(button, true, 'Ingresando...');
   try {
-    const credential = await login($('#loginEmail').value.trim(), $('#loginPassword').value);
+    const credential = await login(
+      $('#loginEmail').value.trim(),
+      $('#loginPassword').value,
+      $('#keepSessionCheckbox').checked
+    );
     await enterApp(credential.user);
     if (!firebaseReady) {
       toast(credential.user.uid === 'demo-user'
@@ -669,6 +677,7 @@ function humanAuthError(error) {
 }
 
 setAuthMode('login');
+$('#keepSessionCheckbox').checked = getKeepSessionPreference();
 
 onAuth(async (user) => {
   if (firebaseReady && user) {
@@ -714,6 +723,7 @@ async function enterApp(user) {
 
     await refreshAll(resolvedPair);
     enteredUserUid = user.uid;
+    openRequestedTab();
 
     if (pushReady) {
       identifyPushUser(user.uid).catch((error) => {
@@ -1169,16 +1179,32 @@ document.querySelectorAll('[data-scroll-pair]').forEach((button) => {
   };
 });
 
+function activateMainTab(tab, { sync = true } = {}) {
+  const button = document.querySelector(`.tab-btn[data-tab="${tab}"]`);
+  const panel = $(`#${tab}Tab`);
+  if (!button || !panel || button.hidden) return false;
+
+  document.querySelectorAll('.tab-btn').forEach((item) => {
+    item.classList.toggle('is-active', item === button);
+  });
+  document.querySelectorAll('.tab-panel').forEach((item) => item.classList.remove('is-active'));
+  panel.classList.add('is-active');
+
+  if (tab === 'pair' && sync) {
+    syncPairState({announce:true,full:true});
+  }
+  return true;
+}
+
+function openRequestedTab() {
+  const requested = new URL(window.location.href).searchParams.get('tab');
+  if (['coupons','mural','pair','admin'].includes(requested || '')) {
+    activateMainTab(requested, { sync: requested === 'pair' });
+  }
+}
+
 document.querySelectorAll('.tab-btn').forEach((button) => {
-  button.onclick = () => {
-    const tab = button.dataset.tab;
-    document.querySelectorAll('.tab-btn').forEach((item) => item.classList.toggle('is-active', item === button));
-    document.querySelectorAll('.tab-panel').forEach((panel) => panel.classList.remove('is-active'));
-    $(`#${tab}Tab`).classList.add('is-active');
-    if (tab === 'pair') {
-      syncPairState({announce:true,full:true});
-    }
-  };
+  button.onclick = () => activateMainTab(button.dataset.tab);
 });
 
 $$('[data-coupon-view]').forEach((button) => {
@@ -1436,6 +1462,7 @@ function renderMural() {
     }).join('')
     : `<div class="empty-state"><strong>El mural todavía está vacío.</strong>${currentPair ? 'La primera foto de ustedes puede empezar esta historia.' : 'Puedes guardar recuerdos privados mientras conectas tu DinoDúo.'}</div>`;
 
+  renderMuralWidget();
   observeReveals();
   document.querySelectorAll('[data-mural-id]').forEach((card) => {
     const open = () => openMuralViewer(card.dataset.muralId);
@@ -1486,6 +1513,65 @@ function renderMural() {
     };
   });
 }
+
+function clearMuralWidgetTimer() {
+  if (muralWidgetTimer) {
+    window.clearInterval(muralWidgetTimer);
+    muralWidgetTimer = null;
+  }
+}
+
+function setMuralWidgetFrame(items, index) {
+  if (!items.length) return;
+  const item = items[index % items.length];
+  muralWidgetIndex = index % items.length;
+  muralWidgetCurrentId = item.id;
+
+  $('#muralWidgetImage').src = item.mediaUrl || item.localUrl;
+  $('#muralWidgetCaption').textContent = item.caption || 'Un recuerdo de nuestro DinoMural';
+  $('#muralWidgetMeta').textContent =
+    (item.uploaderName || (item.userId === currentUser?.uid ? (profile?.displayName || 'Tú') : partnerName || 'DinoDúo'))
+    + ' · ' + timeAgo(item.createdAt || new Date());
+
+  $('#muralWidgetDots').innerHTML = items
+    .slice(0, 6)
+    .map((_, dotIndex) => `<i class="${dotIndex === muralWidgetIndex ? 'is-active' : ''}"></i>`)
+    .join('');
+}
+
+function renderMuralWidget() {
+  const widget = $('#muralWidget');
+  if (!widget) return;
+
+  clearMuralWidgetTimer();
+
+  const photos = mural.filter((item) =>
+    item.type !== 'video' && Boolean(item.mediaUrl || item.localUrl)
+  );
+
+  if (!photos.length) {
+    widget.hidden = true;
+    muralWidgetCurrentId = null;
+    return;
+  }
+
+  widget.hidden = false;
+  muralWidgetIndex = Math.min(muralWidgetIndex, Math.max(photos.length - 1, 0));
+  setMuralWidgetFrame(photos, muralWidgetIndex);
+
+  if (photos.length > 1) {
+    muralWidgetTimer = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      setMuralWidgetFrame(photos, muralWidgetIndex + 1);
+    }, 5200);
+  }
+}
+
+$('#muralWidgetOpenBtn').onclick = () => {
+  const id = muralWidgetCurrentId;
+  activateMainTab('mural', { sync: false });
+  if (id) window.setTimeout(() => openMuralViewer(id), 120);
+};
 
 function openMuralViewer(id) {
   const item = mural.find((entry) => entry.id === id);
