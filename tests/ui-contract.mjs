@@ -54,6 +54,8 @@ if (!html.includes('id="pushSubscriptionStatus"')) errors.push('Falta diagnósti
 if (!service.includes('export async function getPushStatus')) errors.push('Falta getPushStatus para validar OneSignal.');
 if (!service.includes('subscription.optIn')) errors.push('Falta reparar suscripciones OneSignal con optIn().');
 if (!service.includes('export async function sendPushTest')) errors.push('Falta prueba directa de notificación push.');
+if (!service.includes('export function getKeepSessionPreference')) errors.push('Falta preferencia de sesión persistente.');
+if (!html.includes('id="muralWidget"')) errors.push('Falta DinoWidget rotativo del mural.');
 if (!intro.includes('updateViaCache')) errors.push('La PWA no fuerza actualización sin caché del service worker.');
 
 const beforeEnsure = service.split('async function ensureFirebase')[0] || '';
@@ -64,7 +66,7 @@ if (/await import\('https:\/\/www\.gstatic\.com/.test(beforeEnsure)) {
 const required = [
   'skipIntroBtn','openLetterBtn','continueToLoginBtn',
   'loginForm','registerForm','showLoginBtn','showRegisterBtn','demoAccessBtn',
-  'logoutBtn','notificationBtn','openUploadBtn','generatePairCodeBtn','unlinkPairBtn','updateAppBtn','testPushBtn',
+  'logoutBtn','notificationBtn','openUploadBtn','generatePairCodeBtn','unlinkPairBtn','updateAppBtn','testPushBtn','keepSessionCheckbox','muralWidgetOpenBtn',
   'pairCouponForm','pairMessageForm','couponForm','messageForm'
 ];
 for (const id of required) {
