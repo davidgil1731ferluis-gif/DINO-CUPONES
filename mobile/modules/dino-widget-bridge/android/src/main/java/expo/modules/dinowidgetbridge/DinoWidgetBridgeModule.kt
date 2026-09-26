@@ -1,5 +1,6 @@
 package expo.modules.dinowidgetbridge
 
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -59,7 +60,7 @@ private val accentStyle=TextStyle(
 private fun openApp(context: Context, deepLink: String) =
   actionStartActivity(
     Intent(Intent.ACTION_VIEW,Uri.parse(deepLink)).apply {
-      setPackage(context.packageName)
+      component=ComponentName(context.packageName,context.packageName+".MainActivity")
       addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
   )
@@ -203,7 +204,7 @@ class DinoWidgetBridgeModule: Module() {
     AsyncFunction("setWidgetData") { json: String ->
       val context=appContext.reactContext ?: return@AsyncFunction false
       val parsed=runCatching { JSONObject(json) }.getOrDefault(JSONObject())
-      val enriched=cacheMemories(context,parsed)
+      val enriched=runBlocking(Dispatchers.IO) { cacheMemories(context,parsed) }
 
       context.getSharedPreferences(PREFS,Context.MODE_PRIVATE)
         .edit()
