@@ -14,24 +14,31 @@ const firebaseConfig = {
 
 export const firebaseApp = getApps()[0] ?? initializeApp(firebaseConfig);
 
-function resolveAuth() {
-  const getNativePersistence = (firebaseAuth as typeof firebaseAuth & {
-    getReactNativePersistence?: (storage: unknown) => firebaseAuth.Persistence;
-  }).getReactNativePersistence;
+type ReactNativeAuthModule = typeof firebaseAuth & {
+  getReactNativePersistence?: (storage: unknown) => firebaseAuth.Persistence;
+};
 
-  if (typeof getNativePersistence !== 'function') {
-    return firebaseAuth.getAuth(firebaseApp);
-  }
+function createNativeAuth() {
+  const authModule = firebaseAuth as ReactNativeAuthModule;
+  const getNativePersistence = authModule.getReactNativePersistence;
 
   try {
-    const storage = createAsyncStorage('dinocupones-auth');
-    return firebaseAuth.initializeAuth(firebaseApp, {
-      persistence: getNativePersistence(storage),
-    });
-  } catch {
+    if (typeof getNativePersistence === 'function') {
+      const storage = createAsyncStorage('dinocupones-auth');
+      return firebaseAuth.initializeAuth(firebaseApp, {
+        persistence: getNativePersistence(storage),
+      });
+    }
+
     return firebaseAuth.getAuth(firebaseApp);
+  } catch (error) {
+    const code = (error as { code?: string })?.code;
+    if (code === 'auth/already-initialized') {
+      return firebaseAuth.getAuth(firebaseApp);
+    }
+    throw error;
   }
 }
 
-export const auth = resolveAuth();
+export const auth = createNativeAuth();
 export const db = getFirestore(firebaseApp);

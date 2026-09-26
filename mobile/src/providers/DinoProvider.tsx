@@ -14,9 +14,12 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import {
+  createUserWithEmailAndPassword,
   onAuthStateChanged,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
+  updateProfile,
   type User,
 } from 'firebase/auth';
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
@@ -35,6 +38,8 @@ type DinoContextValue = {
   messages: DinoMessage[];
   mural: DinoMemory[];
   login(email: string, password: string): Promise<void>;
+  registerAccount(displayName: string, email: string, password: string): Promise<void>;
+  resetPassword(email: string): Promise<void>;
   logout(): Promise<void>;
   sendMessage(body: string): Promise<void>;
   sendCoupon(input: { title: string; activity: string; expiresAt: Date }): Promise<void>;
@@ -213,7 +218,45 @@ export function DinoProvider({children}:{children:React.ReactNode}) {
     mural,
 
     login:async (email,password)=>{
-      await signInWithEmailAndPassword(auth,email.trim(),password);
+      const normalizedEmail=email.trim().toLowerCase();
+      if (!normalizedEmail) throw Object.assign(new Error('Escribe tu correo.'),{code:'auth/missing-email'});
+      if (!password) throw Object.assign(new Error('Escribe tu contraseña.'),{code:'auth/missing-password'});
+
+      const credential=await signInWithEmailAndPassword(auth,normalizedEmail,password);
+      setUser(credential.user);
+    },
+
+    registerAccount:async (name,email,password)=>{
+      const cleanName=name.trim();
+      const normalizedEmail=email.trim().toLowerCase();
+
+      if (cleanName.length<2) throw Object.assign(new Error('Escribe tu nombre.'),{code:'auth/invalid-display-name'});
+      if (!normalizedEmail.includes('@')) throw Object.assign(new Error('Correo inválido.'),{code:'auth/invalid-email'});
+      if (password.length<6) throw Object.assign(new Error('La contraseña debe tener al menos 6 caracteres.'),{code:'auth/weak-password'});
+
+      const credential=await createUserWithEmailAndPassword(auth,normalizedEmail,password);
+
+      try {
+        await updateProfile(credential.user,{displayName:cleanName});
+        await setDoc(doc(db,'users',credential.user.uid),{
+          displayName:cleanName,
+          email:normalizedEmail,
+          role:'user',
+          active:true,
+          createdAt:serverTimestamp(),
+        });
+        setDisplayName(cleanName);
+        setUser(credential.user);
+      } catch (error) {
+        await firebaseSignOut(auth).catch(()=>undefined);
+        throw error;
+      }
+    },
+
+    resetPassword:async (email)=>{
+      const normalizedEmail=email.trim().toLowerCase();
+      if (!normalizedEmail) throw Object.assign(new Error('Escribe tu correo.'),{code:'auth/missing-email'});
+      await sendPasswordResetEmail(auth,normalizedEmail);
     },
 
     logout:()=>firebaseSignOut(auth),
