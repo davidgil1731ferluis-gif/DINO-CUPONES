@@ -1,9 +1,5 @@
 import { initializeApp, getApps } from 'firebase/app';
-import {
-  getAuth,
-  initializeAuth,
-  getReactNativePersistence,
-} from 'firebase/auth';
+import * as firebaseAuth from 'firebase/auth';
 import { createAsyncStorage } from '@react-native-async-storage/async-storage';
 import { getFirestore } from 'firebase/firestore';
 
@@ -19,13 +15,21 @@ const firebaseConfig = {
 export const firebaseApp = getApps()[0] ?? initializeApp(firebaseConfig);
 
 function resolveAuth() {
+  const getNativePersistence = (firebaseAuth as typeof firebaseAuth & {
+    getReactNativePersistence?: (storage: unknown) => firebaseAuth.Persistence;
+  }).getReactNativePersistence;
+
+  if (typeof getNativePersistence !== 'function') {
+    return firebaseAuth.getAuth(firebaseApp);
+  }
+
   try {
     const storage = createAsyncStorage('dinocupones-auth');
-    return initializeAuth(firebaseApp, {
-      persistence: getReactNativePersistence(storage),
+    return firebaseAuth.initializeAuth(firebaseApp, {
+      persistence: getNativePersistence(storage),
     });
   } catch {
-    return getAuth(firebaseApp);
+    return firebaseAuth.getAuth(firebaseApp);
   }
 }
 
