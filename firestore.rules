@@ -225,7 +225,17 @@ service cloud.firestore {
           )
         );
 
-      allow update, delete: if isAdmin();
+      allow update: if isAdmin()
+        || (
+          signedIn()
+          && resource.data.targetUid == request.auth.uid
+          && resource.data.pairId is string
+          && isPairMember(resource.data.pairId, request.auth.uid)
+          && request.resource.data.readByUid == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readAt', 'readByUid'])
+        );
+
+      allow delete: if isAdmin();
     }
 
     match /messageReads/{id} {

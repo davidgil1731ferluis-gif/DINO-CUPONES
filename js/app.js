@@ -38,7 +38,7 @@ import {
   identifyPushUser,
   clearPushUser,
   onForegroundMessage
-} from './firebase-service.js?v=20260926-phase2-realtime1';
+} from './firebase-service.js?v=20260926-phase2-proapp2';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -730,7 +730,7 @@ async function enterApp(user) {
 
     const isAdmin = profile.role === 'admin';
     $('#adminTabBtn').hidden = !isAdmin;
-    $('.tabbar').classList.toggle('has-admin', isAdmin);
+
 
     await refreshAll(resolvedPair);
     bindPairMessagesRealtime(currentPair);
@@ -949,7 +949,7 @@ function bindPairMessagesRealtime(pair=currentPair) {
       const latest=incoming[incoming.length-1];
       toast((latest.senderName || partnerName || 'Tu persona') + ' te escribió 💌');
 
-      const viewingPair=$('#pairTab')?.classList.contains('is-active')
+      const viewingPair=$('#chatTab')?.classList.contains('is-active')
         && document.visibilityState==='visible';
 
       if (viewingPair) {
@@ -1041,8 +1041,14 @@ function startPairRealtime(uid) {
 
 async function markVisiblePairMessagesRead() {
   if (!currentUser?.uid || !currentPair?.id || document.visibilityState!=='visible') return;
-  const incoming=pairMessages.filter((message)=>message.targetUid===currentUser.uid);
+  const incoming=pairMessages.filter((message)=>
+    message.targetUid===currentUser.uid && !message.readAt
+  );
   if (!incoming.length) return;
+
+  const now=new Date();
+  incoming.forEach((message)=>{ message.readAt=now; });
+  renderPairConversation();
 
   await Promise.allSettled(incoming.map((message)=>markMessageRead(message.id)));
   try {
@@ -1093,51 +1099,108 @@ async function syncPairState({announce=false,full=false}={}) {
 }
 
 function renderPairWorkspace() {
-  const setup = $('#pairSetupView');
-  const connected = $('#pairConnectedView');
+  const setup=$('#pairSetupView');
+  const connected=$('#pairConnectedView');
+  const chatLocked=$('#chatLockedView');
+  const chatConnected=$('#chatConnectedView');
+  const giftLocked=$('#giftLockedView');
+  const giftConnected=$('#giftConnectedView');
   if (!setup || !connected) return;
 
-  const hasPair = Boolean(currentPair && partnerUid);
-  setup.hidden = hasPair;
-  connected.hidden = !hasPair;
+  const hasPair=Boolean(currentPair && partnerUid);
+  setup.hidden=hasPair;
+  connected.hidden=!hasPair;
+  if (chatLocked) chatLocked.hidden=hasPair;
+  if (chatConnected) chatConnected.hidden=!hasPair;
+  if (giftLocked) giftLocked.hidden=hasPair;
+  if (giftConnected) giftConnected.hidden=!hasPair;
 
-  if (!hasPair) return;
+  if (!hasPair) {
+    renderChatUnreadBadge();
+    return;
+  }
 
   hidePairSetupStatus();
-  const myName = profile?.displayName || 'Tú';
-  $('#pairMeName').textContent = myName;
-  $('#pairPartnerName').textContent = partnerName;
-  $('#pairCouponRecipientName').textContent = partnerName;
-  $('#pairSentRecipientName').textContent = partnerName;
-  $('#pairAvatarMe').textContent = myName.charAt(0).toUpperCase();
-  $('#pairAvatarPartner').textContent = partnerName.charAt(0).toUpperCase();
+  const myName=profile?.displayName || 'Tú';
+  const partnerInitial=(partnerName || 'P').charAt(0).toUpperCase();
+
+  $('#pairMeName').textContent=myName;
+  $('#pairPartnerName').textContent=partnerName;
+  $('#pairCouponRecipientName').textContent=partnerName;
+  $('#pairSentRecipientName').textContent=partnerName;
+  $('#pairAvatarMe').textContent=myName.charAt(0).toUpperCase();
+  $('#pairAvatarPartner').textContent=partnerInitial;
+  $('#chatPartnerName').textContent=partnerName;
+  $('#chatPartnerAvatar').textContent=partnerInitial;
 
   renderPairConversation();
   renderSentCoupons();
 }
 
+function chatDayKey(value) {
+  const date=new Date(value || Date.now());
+  return [date.getFullYear(),date.getMonth(),date.getDate()].join('-');
+}
+
+function chatDayLabel(value) {
+  const date=new Date(value || Date.now());
+  const today=new Date();
+  const yesterday=new Date();
+  yesterday.setDate(today.getDate()-1);
+
+  if (chatDayKey(date)===chatDayKey(today)) return 'Hoy';
+  if (chatDayKey(date)===chatDayKey(yesterday)) return 'Ayer';
+
+  return new Intl.DateTimeFormat('es-CO',{
+    day:'numeric',
+    month:'short',
+    year:date.getFullYear()===today.getFullYear()?undefined:'numeric'
+  }).format(date);
+}
+
+function renderChatUnreadBadge() {
+  const badge=$('#chatTabBadge');
+  if (!badge || !currentUser?.uid) return;
+  const unread=pairMessages.filter((message)=>
+    message.targetUid===currentUser.uid && !message.readAt
+  ).length;
+  badge.hidden=unread===0;
+  badge.textContent=unread>9?'9+':String(unread);
+}
+
 function renderPairConversation() {
-  const box = $('#pairConversation');
+  const box=$('#pairConversation');
   if (!box) return;
 
+  renderChatUnreadBadge();
+
   if (!pairMessages.length) {
-    box.innerHTML = '<div class="pair-empty"><strong>Aún no hay mensajes.</strong><span>El primero puede ser algo pequeño y bonito. 💌</span></div>';
+    box.innerHTML='<div class="chat-empty"><span>💌</span><strong>Aún no hay mensajes</strong><small>Escribe el primero.</small></div>';
     return;
   }
 
-  box.innerHTML = pairMessages.map((message) => {
-    const mine = message.senderUid === currentUser.uid;
-    const sender = mine ? 'Tú' : (message.senderName || partnerName || 'Tu persona');
-    return '<article class="pair-message ' + (mine ? 'is-mine' : 'is-theirs') + '">' +
-      '<small>' + escapeHtml(sender) + '</small>' +
-      '<strong>' + escapeHtml(message.title || 'Un mensaje para ti') + '</strong>' +
-      '<p>' + escapeHtml(message.body || '') + '</p>' +
-      '<time>' + timeAgo(message.createdAt || new Date()) + '</time>' +
-    '</article>';
+  let previousDay='';
+  box.innerHTML=pairMessages.map((message)=>{
+    const mine=message.senderUid===currentUser.uid;
+    const day=chatDayKey(message.createdAt);
+    const separator=day!==previousDay
+      ? '<div class="chat-day-separator"><span>'+escapeHtml(chatDayLabel(message.createdAt))+'</span></div>'
+      : '';
+    previousDay=day;
+
+    const readState=mine
+      ? '<span class="pair-message-status '+(message.readAt?'is-read':'')+'">'+(message.readAt?'✓✓ Leído':'✓ Enviado')+'</span>'
+      : '';
+
+    return separator+
+      '<article class="pair-message '+(mine?'is-mine':'is-theirs')+'">'+
+        '<p>'+escapeHtml(message.body || message.title || '')+'</p>'+
+        '<footer><time>'+fmtDateTime(message.createdAt || new Date())+'</time>'+readState+'</footer>'+
+      '</article>';
   }).join('');
 
-  requestAnimationFrame(() => {
-    box.scrollTop = box.scrollHeight;
+  requestAnimationFrame(()=>{
+    box.scrollTop=box.scrollHeight;
   });
 }
 
@@ -1372,7 +1435,7 @@ $('#pairMessageForm').onsubmit = async (event) => {
       senderUid: currentUser.uid,
       senderName: profile?.displayName || 'Dino',
       targetUid: partnerUid,
-      title: $('#pairMessageTitle').value.trim() || 'Un mensaje para ti 💜',
+      title: (profile?.displayName || 'Tu persona') + ' te escribió 💜',
       body: $('#pairMessageBody').value.trim()
     });
 
@@ -1404,43 +1467,46 @@ $('#pairMessageForm').onsubmit = async (event) => {
   }
 };
 
-document.querySelectorAll('[data-scroll-pair]').forEach((button) => {
-  button.onclick = () => {
-    const target = $(button.dataset.scrollPair);
-    if (!target) return;
-    target.scrollIntoView({behavior:'smooth',block:'start'});
-    target.classList.add('pair-focus-card');
-    window.setTimeout(() => target.classList.remove('pair-focus-card'), 900);
-  };
+document.querySelectorAll('[data-open-tab]').forEach((button)=>{
+  button.onclick=()=>activateMainTab(button.dataset.openTab,{sync:true});
 });
 
-function activateMainTab(tab, { sync = true } = {}) {
-  const button = document.querySelector(`.tab-btn[data-tab="${tab}"]`);
-  const panel = $(`#${tab}Tab`);
+function activateMainTab(tab,{sync=true}={}) {
+  const button=document.querySelector('[data-tab="'+tab+'"]');
+  const panel=$('#'+tab+'Tab');
   if (!button || !panel || button.hidden) return false;
 
-  document.querySelectorAll('.tab-btn').forEach((item) => {
-    item.classList.toggle('is-active', item === button);
+  document.querySelectorAll('.tab-btn').forEach((item)=>{
+    item.classList.toggle('is-active',item===button);
   });
-  document.querySelectorAll('.tab-panel').forEach((item) => item.classList.remove('is-active'));
+  $('#adminTabBtn')?.classList.toggle('is-active',tab==='admin');
+  document.querySelectorAll('.tab-panel').forEach((item)=>item.classList.remove('is-active'));
   panel.classList.add('is-active');
 
-  if (tab === 'pair') {
-    if (sync) syncPairState({announce:false,full:false});
-    markVisiblePairMessagesRead();
+  if (['chat','gift','pair'].includes(tab) && sync) {
+    syncPairState({announce:false,full:false});
   }
+  if (tab==='chat') markVisiblePairMessagesRead();
+
+  try {
+    const url=new URL(window.location.href);
+    if (tab==='coupons') url.searchParams.delete('tab');
+    else url.searchParams.set('tab',tab);
+    history.replaceState(null,'',url);
+  } catch {}
+
   return true;
 }
 
 function openRequestedTab() {
-  const requested = new URL(window.location.href).searchParams.get('tab');
-  if (['coupons','mural','pair','admin'].includes(requested || '')) {
-    activateMainTab(requested, { sync: requested === 'pair' });
+  const requested=new URL(window.location.href).searchParams.get('tab');
+  if (['coupons','chat','gift','mural','pair','admin'].includes(requested || '')) {
+    activateMainTab(requested,{sync:['chat','gift','pair'].includes(requested)});
   }
 }
 
-document.querySelectorAll('.tab-btn').forEach((button) => {
-  button.onclick = () => activateMainTab(button.dataset.tab);
+document.querySelectorAll('[data-tab]').forEach((button)=>{
+  button.onclick=()=>activateMainTab(button.dataset.tab);
 });
 
 $$('[data-coupon-view]').forEach((button) => {

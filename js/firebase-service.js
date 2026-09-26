@@ -559,7 +559,7 @@ export function subscribePairMessages(pairId, uid, callback, onError=()=>{}) {
     target.clear();
     snapshot.docs.forEach((doc)=>{
       const data=doc.data();
-      target.set(doc.id,{id:doc.id,...data,createdAt:asDate(data.createdAt)});
+      target.set(doc.id,{id:doc.id,...data,createdAt:asDate(data.createdAt),readAt:data.readAt ? asDate(data.readAt) : null});
     });
     emit();
   };
@@ -1029,7 +1029,15 @@ export async function listPairMessages(pairId,uid=null){
   sentSnap.docs.forEach(doc=>unique.set(doc.id,doc));
 
   return [...unique.values()]
-    .map(d=>({id:d.id,...d.data(),createdAt:asDate(d.data().createdAt)}))
+    .map(d=>{
+      const data=d.data();
+      return {
+        id:d.id,
+        ...data,
+        createdAt:asDate(data.createdAt),
+        readAt:data.readAt ? asDate(data.readAt) : null
+      };
+    })
     .sort((a,b)=>asDate(a.createdAt)-asDate(b.createdAt));
 }
 
@@ -1058,10 +1066,35 @@ export async function markMessageRead(id){
   if(configured){
     const uid=auth.currentUser?.uid;
     if(!uid)return;
-    return fsMod.setDoc(fsMod.doc(db,'messageReads',uid+'_'+id),{userId:uid,messageId:id,readAt:fsMod.serverTimestamp()});
+
+    const messageRef=fsMod.doc(db,'messages',id);
+    const messageSnap=await fsMod.getDoc(messageRef);
+
+    if(messageSnap.exists()){
+      const message=messageSnap.data();
+      if(
+        message.targetUid===uid
+        && typeof message.pairId==='string'
+        && !message.readAt
+      ){
+        await fsMod.updateDoc(messageRef,{
+          readAt:fsMod.serverTimestamp(),
+          readByUid:uid
+        });
+      }
+    }
+
+    return fsMod.setDoc(
+      fsMod.doc(db,'messageReads',uid+'_'+id),
+      {userId:uid,messageId:id,readAt:fsMod.serverTimestamp()},
+      {merge:true}
+    );
   }
   const m=demoMessages.find(x=>x.id===id);
-  if(m)m.read=true;
+  if(m){
+    m.read=true;
+    m.readAt=new Date();
+  }
 }
 
 export async function listUsers(){

@@ -51,6 +51,11 @@ if (!service.includes('export function subscribePairMessages')) errors.push('Fal
 if (!app.includes('startPairRealtime')) errors.push('app.js no inicia la sincronización en vivo del DinoDúo.');
 if (!html.includes('id="pairRealtimeStatus"')) errors.push('Falta indicador visual de sincronización del DinoDúo.');
 if (!html.includes('id="unlinkPairDialog"')) errors.push('Falta confirmación propia para desvincular DinoDúo.');
+if (!html.includes('id="chatTab"')) errors.push('Falta pestaña independiente de Chat.');
+if (!html.includes('id="giftTab"')) errors.push('Falta pestaña independiente para regalar cupones.');
+if (!html.includes('id="chatTabBadge"')) errors.push('Falta contador de mensajes no leídos en Chat.');
+if (!app.includes("'chat','gift','pair'")) errors.push('La navegación no sincroniza las áreas privadas separadas.');
+if (!service.includes('readByUid')) errors.push('Falta persistencia de lectura para mensajes del DinoDúo.');
 if (!html.includes('intro-bootstrap.js')) errors.push('Falta cargar intro-bootstrap.js en index.html.');
 if (!intro.includes('window.DinoIntro')) errors.push('El bootstrap de la intro no expone DinoIntro.');
 if (!html.includes('id="unlinkPairBtn"')) errors.push('Falta el botón para desvincular DinoDúo.');
