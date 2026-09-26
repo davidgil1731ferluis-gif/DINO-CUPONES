@@ -56,6 +56,9 @@ if (!service.includes('subscription.optIn')) errors.push('Falta reparar suscripc
 if (!service.includes('export async function sendPushTest')) errors.push('Falta prueba directa de notificación push.');
 if (!service.includes('export function getKeepSessionPreference')) errors.push('Falta preferencia de sesión persistente.');
 if (!html.includes('id="muralWidget"')) errors.push('Falta DinoWidget rotativo del mural.');
+if (!html.includes('brand-mark-image')) errors.push('Falta la identidad visual del triceratops en el login.');
+if (!html.includes('brand-mini-logo')) errors.push('Falta la identidad visual del triceratops en el header.');
+if (!html.includes('triceratops-deliver.png')) errors.push('La app no está usando el triceratops como logo.');
 if (!intro.includes('updateViaCache')) errors.push('La PWA no fuerza actualización sin caché del service worker.');
 
 const beforeEnsure = service.split('async function ensureFirebase')[0] || '';
