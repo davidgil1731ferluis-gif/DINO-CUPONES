@@ -63,27 +63,37 @@
     }
 
     resetStage();
+    const introScreen = $('#introScreen');
+    introScreen?.classList.add('is-playing');
+
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      introScreen?.classList.add('is-letter-mode');
+      revealLetter();
+      return;
+    }
+
     run.classList.add('is-visible', 'is-running');
 
-    later(3750, () => {
+    later(2800, () => {
       run.classList.remove('is-visible', 'is-running');
       $('#introScreen')?.classList.add('is-letter-mode');
       stage.classList.add('is-arrived');
       deliver.classList.add('is-visible', 'is-delivering');
     });
 
-    later(4750, revealLetter);
+    later(3550, revealLetter);
 
-    later(6250, () => {
+    later(4550, () => {
       deliver.classList.remove('is-visible', 'is-delivering');
       stage.classList.remove('is-arrived');
       stage.classList.add('is-leaving');
       exit.classList.add('is-visible', 'is-exiting');
     });
 
-    later(9050, () => {
+    later(6700, () => {
       exit.classList.remove('is-visible', 'is-exiting');
       stage.classList.remove('is-leaving');
+      $('#introScreen')?.classList.remove('is-playing');
     });
   }
 
@@ -92,6 +102,7 @@
     started = true;
     const stage = $('#dinoStage');
     $('#introScreen')?.classList.add('is-letter-mode');
+    $('#introScreen')?.classList.remove('is-playing');
     stage?.classList.remove('is-arrived');
     stage?.classList.add('is-leaving');
     [$('#dinoRun'), $('#dinoDeliver'), $('#dinoExit')].forEach((img) => {
@@ -100,7 +111,7 @@
     revealLetter();
   }
 
-  const APP_BUILD = '20260926-phase1-stable';
+  const APP_BUILD = '20260926-phase1-cinematic3';
   let updateReloading = false;
 
   async function checkForUpdate(forceReload = false) {
@@ -157,8 +168,44 @@
     return checkForUpdate(false);
   }
 
+  function setupIntroParallax() {
+    const introScreen = $('#introScreen');
+    if (!introScreen) return;
+    if (!window.matchMedia?.('(pointer:fine)').matches) return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+
+    let frame = 0;
+    let pointerX = 0;
+    let pointerY = 0;
+
+    const render = () => {
+      frame = 0;
+      const bounds = introScreen.getBoundingClientRect();
+      const nx = ((pointerX - bounds.left) / Math.max(bounds.width, 1)) - 0.5;
+      const ny = ((pointerY - bounds.top) / Math.max(bounds.height, 1)) - 0.5;
+      introScreen.style.setProperty('--intro-far-x', (nx * 8).toFixed(2) + 'px');
+      introScreen.style.setProperty('--intro-far-y', (ny * 5).toFixed(2) + 'px');
+      introScreen.style.setProperty('--intro-near-x', (nx * -12).toFixed(2) + 'px');
+      introScreen.style.setProperty('--intro-near-y', (ny * -7).toFixed(2) + 'px');
+    };
+
+    introScreen.addEventListener('pointermove', (event) => {
+      pointerX = event.clientX;
+      pointerY = event.clientY;
+      if (!frame) frame = window.requestAnimationFrame(render);
+    });
+
+    introScreen.addEventListener('pointerleave', () => {
+      introScreen.style.setProperty('--intro-far-x', '0px');
+      introScreen.style.setProperty('--intro-far-y', '0px');
+      introScreen.style.setProperty('--intro-near-x', '0px');
+      introScreen.style.setProperty('--intro-near-y', '0px');
+    });
+  }
+
   function setup() {
     registerAppServiceWorker();
+    setupIntroParallax();
 
     const introBackground = $('.intro-bg-image');
     if (introBackground) {

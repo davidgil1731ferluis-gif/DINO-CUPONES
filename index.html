@@ -23,7 +23,7 @@
   <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js" crossorigin />
   <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./styles.css?v=20260926-phase1-premium2" />
+  <link rel="stylesheet" href="./styles.css?v=20260926-phase1-cinematic3" />
 </head>
 <body>
   <div id="toast" class="toast" aria-live="polite"></div>
@@ -54,9 +54,14 @@
     </div>
 
     <div class="intro-copy floating-card">
+      <div class="intro-brand-lockup">
+        <span class="intro-brand-logo"><img src="./assets/triceratops-deliver.png" alt="" aria-hidden="true" /></span>
+        <span class="intro-brand-copy"><strong>DinoCupones</strong><small>Pequeños planes, grandes recuerdos</small></span>
+      </div>
       <span class="eyebrow">Una entrega especial viene en camino</span>
-      <h1>Una pequeña aventura llegó hasta ti.</h1>
-      <p>Espera un momento. Nuestro triceratops trae una carta que solo aparecerá cuando termine de entregarla.</p>
+      <h1>Tu próxima aventura está por llegar.</h1>
+      <p>Nuestro triceratops trae una carta para abrir juntos. Cuando termine la entrega, tócala para descubrirla.</p>
+      <div class="intro-progress" aria-hidden="true"><span></span></div>
     </div>
 
     <button id="skipIntroBtn" class="ghost-btn intro-skip" type="button">Saltar animación</button>
@@ -87,7 +92,11 @@
     <div class="letter-shell">
       <div class="paper-glow"></div>
       <article class="paper-letter">
-        <span class="letter-kicker">DinoCupones</span>
+        <div class="letter-brand-lockup">
+          <span class="letter-brand-logo"><img src="./assets/triceratops-deliver.png" alt="" aria-hidden="true" /></span>
+          <span><strong>DinoCupones</strong><small>Un espacio de ustedes</small></span>
+        </div>
+        <span class="letter-kicker">Carta de bienvenida</span>
         <h2>Los mejores momentos no se compran, se canjean con amor.</h2>
         <p>Este espacio está pensado para guardar aventuras, publicar cupones y convertir pequeños detalles en recuerdos reales.</p>
         <p class="signature">Con cariño, tu compañero de aventuras 🦖💜</p>
@@ -543,7 +552,7 @@
   </aside>
   <div id="drawerBackdrop" class="drawer-backdrop"></div>
 
-  <script src="./js/intro-bootstrap.js?v=20260926-phase1" defer></script>
+  <script src="./js/intro-bootstrap.js?v=20260926-phase1-cinematic3" defer></script>
   <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
   <script type="module" src="./js/app.js?v=20260926-phase1"></script>
 </body>

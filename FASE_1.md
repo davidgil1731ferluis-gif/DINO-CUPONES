@@ -25,3 +25,12 @@ Resultado del contrato UI: 41 controles revisados y 146 IDs únicos.
 ## Importante
 
 El archivo original `assets/romantic-jungle-bg.webp` incluido en el ZIP recibido estaba truncado y no podía decodificarse. En esta versión se reemplaza por un recurso WEBP válido y la escena visual del inicio queda respaldada por CSS, por lo que ya no queda una pantalla vacía si falta la ilustración original.
+
+## Cierre visual de la Fase 1
+
+- Intro cinematográfica independiente de la imagen de fondo original: paisaje generado por CSS con profundidad y fallback permanente.
+- Identidad DinoCupones reforzada con el triceratops dentro de la bienvenida y la carta.
+- Animación compactada para que la carta aparezca aproximadamente a los 3.5 segundos.
+- Parallax suave con puntero en escritorio, desactivado automáticamente con `prefers-reduced-motion`.
+- Carta de bienvenida rediseñada y responsive.
+- Nueva versión de caché PWA para propagar los cambios visuales.
