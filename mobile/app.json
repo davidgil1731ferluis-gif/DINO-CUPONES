@@ -1,0 +1,66 @@
+{
+  "expo": {
+    "name": "DinoCupones",
+    "slug": "dinocupones",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "dinocupones",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F8E6F3"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.dinocupones.app"
+    },
+    "android": {
+      "package": "com.dinocupones.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#8F5CA8"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "enableBackgroundRemoteNotifications": true
+        }
+      ],
+      [
+        "expo-widgets",
+        {
+          "groupIdentifier": "group.com.dinocupones.app",
+          "widgets": [
+            {
+              "name": "DinoMemoriesWidget",
+              "displayName": "DinoRecuerdos",
+              "description": "Un recuerdo de ustedes en la pantalla de inicio.",
+              "ios": { "supportedFamilies": ["systemSmall", "systemMedium"] }
+            },
+            {
+              "name": "DinoCouponsWidget",
+              "displayName": "DinoCupones activos",
+              "description": "Muestra los cupones activos de tu DinoDúo.",
+              "ios": { "supportedFamilies": ["systemSmall", "systemMedium"] }
+            },
+            {
+              "name": "DinoMessagesWidget",
+              "displayName": "DinoMensajes",
+              "description": "Muestra el mensaje más reciente de tu DinoDúo.",
+              "ios": { "supportedFamilies": ["systemSmall", "systemMedium"] }
+            }
+          ]
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
