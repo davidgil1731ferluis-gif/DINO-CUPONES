@@ -12,7 +12,7 @@ export default function UsScreen() {
     logout,
     createPairInvite,
     acceptPairInvite,
-    unlinkCurrentPair,
+    unlinkPair,
   }=useDino();
   const [inviteCode,setInviteCode]=useState('');
   const [joinCode,setJoinCode]=useState('');
@@ -52,7 +52,7 @@ export default function UsScreen() {
         style:'destructive',
         onPress:async()=>{
           try {
-            await unlinkCurrentPair();
+            await unlinkPair();
           } catch (error) {
             Alert.alert('DinoDúo',error instanceof Error?error.message:'No se pudo cerrar el vínculo.');
           }

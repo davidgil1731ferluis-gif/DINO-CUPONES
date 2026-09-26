@@ -1,12 +1,19 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Screen, common } from '@/src/components/Screen';
 import { useDino } from '@/src/providers/DinoProvider';
 import { colors } from '@/src/theme';
 
 export default function ChatScreen() {
-  const { pair, partnerName, messages, user, sendMessage } = useDino();
+  const { pair, partnerName, messages, user, sendMessage, markIncomingMessagesRead } = useDino();
   const [body, setBody] = useState('');
+
+  useEffect(() => {
+    if (!pair) return;
+    markIncomingMessagesRead().catch((error) =>
+      console.warn('No se pudieron marcar los DinoMensajes como leídos.', error)
+    );
+  }, [pair?.id, messages.length]);
 
   if (!pair) {
     return <Screen title="DinoChat"><Text style={common.empty}>Conecta un DinoDúo para activar el chat.</Text></Screen>;

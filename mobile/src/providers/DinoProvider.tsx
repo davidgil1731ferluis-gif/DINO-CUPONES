@@ -9,6 +9,7 @@ import {
   serverTimestamp,
   setDoc,
   Timestamp,
+  updateDoc,
   where,
   writeBatch,
 } from 'firebase/firestore';
@@ -39,52 +40,36 @@ type DinoContextValue = {
   sendCoupon(input: { title: string; activity: string; expiresAt: Date }): Promise<void>;
   createPairInvite(): Promise<string>;
   acceptPairInvite(code: string): Promise<void>;
-  unlinkCurrentPair(): Promise<void>;
-  createPairInvite(): Promise<string>;
-  acceptPairInvite(code: string): Promise<void>;
   unlinkPair(): Promise<void>;
-  createPairInvite(): Promise<string>;
-  acceptPairInvite(code: string): Promise<void>;
-  unlinkPair(): Promise<void>;
+  markIncomingMessagesRead(): Promise<void>;
 };
 
-const DinoContext = createContext<DinoContextValue | null>(null);
+const DinoContext=createContext<DinoContextValue | null>(null);
 
-const mapDocs = <T,>(snapshot: any) =>
-  snapshot.docs.map((item: any) => ({ id: item.id, ...item.data() })) as T[];
+const mapDocs=<T,>(snapshot: any) =>
+  snapshot.docs.map((item: any)=>({id:item.id,...item.data()})) as T[];
 
 function randomPairCode() {
-  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  return Array.from({ length: 6 }, () =>
-    alphabet[Math.floor(Math.random() * alphabet.length)]
-  ).join('');
+  const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from({length:6},()=>alphabet[Math.floor(Math.random()*alphabet.length)]).join('');
 }
 
-function randomCode() {
-  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = '';
-  for (let index = 0; index < 6; index += 1) {
-    code += alphabet[Math.floor(Math.random() * alphabet.length)];
-  }
-  return code;
-}
+export function DinoProvider({children}:{children:React.ReactNode}) {
+  const [loading,setLoading]=useState(true);
+  const [user,setUser]=useState<User | null>(null);
+  const [displayName,setDisplayName]=useState('Dino');
+  const [pair,setPair]=useState<DinoPair | null>(null);
+  const [coupons,setCoupons]=useState<DinoCoupon[]>([]);
+  const [sentCoupons,setSentCoupons]=useState<DinoCoupon[]>([]);
+  const [messages,setMessages]=useState<DinoMessage[]>([]);
+  const [mural,setMural]=useState<DinoMemory[]>([]);
 
-export function DinoProvider({ children }: { children: React.ReactNode }) {
-  const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<User | null>(null);
-  const [displayName, setDisplayName] = useState('Dino');
-  const [pair, setPair] = useState<DinoPair | null>(null);
-  const [coupons, setCoupons] = useState<DinoCoupon[]>([]);
-  const [sentCoupons, setSentCoupons] = useState<DinoCoupon[]>([]);
-  const [messages, setMessages] = useState<DinoMessage[]>([]);
-  const [mural, setMural] = useState<DinoMemory[]>([]);
-
-  useEffect(() => onAuthStateChanged(auth, (nextUser) => {
+  useEffect(()=>onAuthStateChanged(auth,(nextUser)=>{
     setUser(nextUser);
     setLoading(false);
-  }), []);
+  }),[]);
 
-  useEffect(() => {
+  useEffect(()=>{
     if (!user) {
       setPair(null);
       setCoupons([]);
@@ -95,27 +80,27 @@ export function DinoProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const profileStop = onSnapshot(doc(db, 'users', user.uid), (snapshot) => {
+    const profileStop=onSnapshot(doc(db,'users',user.uid),(snapshot)=>{
       setDisplayName(snapshot.data()?.displayName || user.displayName || 'Dino');
     });
 
-    const pairStop = onSnapshot(
-      query(collection(db, 'pairs'), where('memberUids', 'array-contains', user.uid)),
-      (snapshot) => {
-        const active = mapDocs<DinoPair>(snapshot)
-          .filter((item) => item.active !== false)
+    const pairStop=onSnapshot(
+      query(collection(db,'pairs'),where('memberUids','array-contains',user.uid)),
+      (snapshot)=>{
+        const active=mapDocs<DinoPair>(snapshot)
+          .filter((item)=>item.active!==false)
           .at(0) ?? null;
         setPair(active);
       }
     );
 
-    return () => {
+    return ()=>{
       profileStop();
       pairStop();
     };
-  }, [user?.uid]);
+  },[user?.uid]);
 
-  useEffect(() => {
+  useEffect(()=>{
     if (!user || !pair) {
       setCoupons([]);
       setSentCoupons([]);
@@ -124,107 +109,99 @@ export function DinoProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const pairId = pair.id;
-    const receivedStop = onSnapshot(
+    const pairId=pair.id;
+
+    const receivedStop=onSnapshot(
       query(
-        collection(db, 'coupons'),
-        where('assignedToUid', '==', user.uid),
-        where('pairId', '==', pairId)
+        collection(db,'coupons'),
+        where('assignedToUid','==',user.uid),
+        where('pairId','==',pairId)
       ),
-      (snapshot) => setCoupons(mapDocs<DinoCoupon>(snapshot))
+      (snapshot)=>setCoupons(mapDocs<DinoCoupon>(snapshot))
     );
 
-    const sentStop = onSnapshot(
+    const sentStop=onSnapshot(
       query(
-        collection(db, 'coupons'),
-        where('createdByUid', '==', user.uid),
-        where('pairId', '==', pairId)
+        collection(db,'coupons'),
+        where('createdByUid','==',user.uid),
+        where('pairId','==',pairId)
       ),
-      (snapshot) => setSentCoupons(mapDocs<DinoCoupon>(snapshot))
+      (snapshot)=>setSentCoupons(mapDocs<DinoCoupon>(snapshot))
     );
 
-    const receivedMessages = new Map<string, DinoMessage>();
-    const sentMessages = new Map<string, DinoMessage>();
-    const emitMessages = () => {
-      const merged = new Map([...receivedMessages, ...sentMessages]);
-      setMessages([...merged.values()].sort((a, b) => {
-        const aTime = (a.createdAt as any)?.toMillis?.() ?? 0;
-        const bTime = (b.createdAt as any)?.toMillis?.() ?? 0;
-        return aTime - bTime;
+    const receivedMessages=new Map<string,DinoMessage>();
+    const sentMessages=new Map<string,DinoMessage>();
+    const emitMessages=()=>{
+      const merged=new Map([...receivedMessages,...sentMessages]);
+      setMessages([...merged.values()].sort((a,b)=>{
+        const aTime=(a.createdAt as any)?.toMillis?.() ?? 0;
+        const bTime=(b.createdAt as any)?.toMillis?.() ?? 0;
+        return aTime-bTime;
       }));
     };
 
-    const incomingStop = onSnapshot(
+    const incomingStop=onSnapshot(
       query(
-        collection(db, 'messages'),
-        where('pairId', '==', pairId),
-        where('targetUid', '==', user.uid)
+        collection(db,'messages'),
+        where('pairId','==',pairId),
+        where('targetUid','==',user.uid)
       ),
-      (snapshot) => {
+      (snapshot)=>{
         receivedMessages.clear();
-        mapDocs<DinoMessage>(snapshot).forEach((item) => receivedMessages.set(item.id, item));
+        mapDocs<DinoMessage>(snapshot).forEach((item)=>receivedMessages.set(item.id,item));
         emitMessages();
       }
     );
 
-    const outgoingStop = onSnapshot(
+    const outgoingStop=onSnapshot(
       query(
-        collection(db, 'messages'),
-        where('pairId', '==', pairId),
-        where('senderUid', '==', user.uid)
+        collection(db,'messages'),
+        where('pairId','==',pairId),
+        where('senderUid','==',user.uid)
       ),
-      (snapshot) => {
+      (snapshot)=>{
         sentMessages.clear();
-        mapDocs<DinoMessage>(snapshot).forEach((item) => sentMessages.set(item.id, item));
+        mapDocs<DinoMessage>(snapshot).forEach((item)=>sentMessages.set(item.id,item));
         emitMessages();
       }
     );
 
-    const muralStop = onSnapshot(
-      query(collection(db, 'mural'), where('pairId', '==', pairId)),
-      (snapshot) => setMural(mapDocs<DinoMemory>(snapshot))
+    const muralStop=onSnapshot(
+      query(collection(db,'mural'),where('pairId','==',pairId)),
+      (snapshot)=>setMural(mapDocs<DinoMemory>(snapshot))
     );
 
-    return () => {
+    return ()=>{
       receivedStop();
       sentStop();
       incomingStop();
       outgoingStop();
       muralStop();
     };
-  }, [user?.uid, pair?.id]);
+  },[user?.uid,pair?.id]);
 
-  const partnerName = useMemo(() => {
+  const partnerName=useMemo(()=>{
     if (!user || !pair) return '';
-    const partnerUid = pair.memberUids.find((uid) => uid !== user.uid);
+    const partnerUid=pair.memberUids.find((uid)=>uid!==user.uid);
     return partnerUid ? (pair.memberNames?.[partnerUid] || 'Tu persona') : '';
-  }, [pair, user?.uid]);
+  },[pair,user?.uid]);
 
-  useEffect(() => {
+  useEffect(()=>{
     if (!user) return;
     syncWidgets({
       partnerName,
       coupons,
       messages,
       mural,
-      currentUid: user.uid,
-    }).catch((error) => console.warn('No se pudieron sincronizar los widgets.', error));
-  }, [user?.uid, partnerName, coupons, messages, mural]);
+      currentUid:user.uid,
+    }).catch((error)=>console.warn('No se pudieron sincronizar los widgets.',error));
+  },[user?.uid,partnerName,coupons,messages,mural]);
 
-  const partnerUid = pair && user
-    ? pair.memberUids.find((uid) => uid !== user.uid) || ''
+  const partnerUid=pair && user
+    ? pair.memberUids.find((uid)=>uid!==user.uid) || ''
     : '';
 
-  const randomCode = () => {
-    const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let value='';
-    for (let index=0; index<6; index+=1) {
-      value += alphabet[Math.floor(Math.random()*alphabet.length)];
-    }
-    return value;
-  };
-
-  const value: DinoContextValue = {
+  const value:DinoContextValue={
     loading,
     user,
     displayName,
@@ -234,116 +211,138 @@ export function DinoProvider({ children }: { children: React.ReactNode }) {
     sentCoupons,
     messages,
     mural,
-    login: async (email, password) => {
-      await signInWithEmailAndPassword(auth, email.trim(), password);
+
+    login:async (email,password)=>{
+      await signInWithEmailAndPassword(auth,email.trim(),password);
     },
-    logout: () => firebaseSignOut(auth),
-    sendMessage: async (body) => {
+
+    logout:()=>firebaseSignOut(auth),
+
+    sendMessage:async (body)=>{
       if (!user || !pair || !partnerUid || !body.trim()) return;
-      await addDoc(collection(db, 'messages'), {
-        pairId: pair.id,
-        senderUid: user.uid,
-        senderName: displayName,
-        targetUid: partnerUid,
-        title: displayName + ' te escribió 💜',
-        body: body.trim(),
-        createdAt: serverTimestamp(),
+      await addDoc(collection(db,'messages'),{
+        pairId:pair.id,
+        senderUid:user.uid,
+        senderName:displayName,
+        targetUid:partnerUid,
+        title:displayName+' te escribió 💜',
+        body:body.trim(),
+        createdAt:serverTimestamp(),
       });
     },
-    sendCoupon: async ({ title, activity, expiresAt }) => {
+
+    sendCoupon:async ({title,activity,expiresAt})=>{
       if (!user || !pair || !partnerUid) return;
-      await addDoc(collection(db, 'coupons'), {
-        pairId: pair.id,
-        createdByUid: user.uid,
-        createdByName: displayName,
-        assignedToUid: partnerUid,
-        assignedToName: partnerName,
-        title: title.trim(),
-        activity: activity.trim(),
+      await addDoc(collection(db,'coupons'),{
+        pairId:pair.id,
+        createdByUid:user.uid,
+        createdByName:displayName,
+        assignedToUid:partnerUid,
+        assignedToName:partnerName,
+        title:title.trim(),
+        activity:activity.trim(),
         expiresAt,
-        status: 'active',
-        emoji: '💜',
-        createdAt: serverTimestamp(),
+        status:'active',
+        emoji:'💜',
+        createdAt:serverTimestamp(),
       });
     },
-    createPairInvite: async () => {
+
+    createPairInvite:async ()=>{
       if (!user) throw new Error('Debes iniciar sesión.');
       if (pair) throw new Error('Ya tienes un DinoDúo activo.');
 
-      for (let attempt = 0; attempt < 5; attempt += 1) {
-        const code = randomCode();
-        const inviteRef = doc(db, 'pairInvites', code);
-        const existing = await getDoc(inviteRef);
+      for (let attempt=0; attempt<5; attempt+=1) {
+        const code=randomPairCode();
+        const inviteRef=doc(db,'pairInvites',code);
+        const existing=await getDoc(inviteRef);
         if (existing.exists()) continue;
 
-        await setDoc(inviteRef, {
-          fromUid: user.uid,
-          fromName: displayName || 'Dino',
-          status: 'pending',
-          createdAt: serverTimestamp(),
-          expiresAt: Timestamp.fromDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)),
+        await setDoc(inviteRef,{
+          fromUid:user.uid,
+          fromName:displayName || 'Dino',
+          status:'pending',
+          createdAt:serverTimestamp(),
+          expiresAt:Timestamp.fromDate(new Date(Date.now()+7*24*60*60*1000)),
         });
         return code;
       }
 
       throw new Error('No se pudo generar un código único.');
     },
-    acceptPairInvite: async (rawCode) => {
+
+    acceptPairInvite:async (rawCode)=>{
       if (!user) throw new Error('Debes iniciar sesión.');
       if (pair) throw new Error('Ya tienes un DinoDúo activo.');
 
-      const code = rawCode.trim().toUpperCase();
+      const code=rawCode.trim().toUpperCase();
       if (!code) throw new Error('Escribe el código de invitación.');
 
-      const inviteRef = doc(db, 'pairInvites', code);
-      const inviteSnap = await getDoc(inviteRef);
+      const inviteRef=doc(db,'pairInvites',code);
+      const inviteSnap=await getDoc(inviteRef);
       if (!inviteSnap.exists()) throw new Error('Código no encontrado.');
 
-      const invite = inviteSnap.data();
-      if (invite.status !== 'pending') throw new Error('Este código ya fue utilizado.');
-      if (invite.fromUid === user.uid) throw new Error('No puedes vincularte contigo mismo.');
-      if (invite.expiresAt?.toDate?.() < new Date()) throw new Error('Este código venció.');
+      const invite=inviteSnap.data();
+      if (invite.status!=='pending') throw new Error('Este código ya fue utilizado.');
+      if (invite.fromUid===user.uid) throw new Error('No puedes vincularte contigo mismo.');
 
-      const pairRef = doc(collection(db, 'pairs'));
-      const memberNames: Record<string, string> = {
-        [invite.fromUid]: invite.fromName || 'Tu persona',
-        [user.uid]: displayName || 'Dino',
+      const expiry=invite.expiresAt?.toDate?.();
+      if (expiry && expiry<new Date()) throw new Error('Este código venció.');
+
+      const pairRef=doc(collection(db,'pairs'));
+      const memberNames:Record<string,string>={
+        [invite.fromUid]:invite.fromName || 'Tu persona',
+        [user.uid]:displayName || 'Dino',
       };
 
-      const batch = writeBatch(db);
-      batch.set(pairRef, {
-        memberUids: [invite.fromUid, user.uid],
+      const batch=writeBatch(db);
+      batch.set(pairRef,{
+        memberUids:[invite.fromUid,user.uid],
         memberNames,
-        active: true,
-        inviteCode: code,
-        createdAt: serverTimestamp(),
+        active:true,
+        inviteCode:code,
+        createdAt:serverTimestamp(),
       });
-      batch.update(inviteRef, {
-        status: 'accepted',
-        toUid: user.uid,
-        toName: displayName || 'Dino',
-        pairId: pairRef.id,
-        acceptedAt: serverTimestamp(),
+      batch.update(inviteRef,{
+        status:'accepted',
+        toUid:user.uid,
+        toName:displayName || 'Dino',
+        pairId:pairRef.id,
+        acceptedAt:serverTimestamp(),
       });
       await batch.commit();
     },
-    unlinkPair: async () => {
-      if (!user || !pair) throw new Error('No hay un DinoDúo activo.');
-      const pairRef = doc(db, 'pairs', pair.id);
 
-      await runTransaction(db, async (transaction) => {
-        const snapshot = await transaction.get(pairRef);
+    unlinkPair:async ()=>{
+      if (!user || !pair) throw new Error('No hay un DinoDúo activo.');
+      const pairRef=doc(db,'pairs',pair.id);
+
+      await runTransaction(db,async (transaction)=>{
+        const snapshot=await transaction.get(pairRef);
         if (!snapshot.exists()) throw new Error('No se encontró el DinoDúo.');
-        const current = snapshot.data();
-        if (current.active === false || !current.memberUids?.includes(user.uid)) {
+        const current=snapshot.data();
+        if (current.active===false || !current.memberUids?.includes(user.uid)) {
           throw new Error('No puedes cerrar este vínculo.');
         }
-        transaction.update(pairRef, {
-          active: false,
-          unlinkedBy: user.uid,
-          unlinkedAt: serverTimestamp(),
+        transaction.update(pairRef,{
+          active:false,
+          unlinkedBy:user.uid,
+          unlinkedAt:serverTimestamp(),
         });
       });
+    },
+
+    markIncomingMessagesRead:async ()=>{
+      if (!user || !pair) return;
+      const unread=messages.filter(
+        (message)=>message.targetUid===user.uid && !message.readAt
+      );
+      await Promise.all(unread.map((message)=>
+        updateDoc(doc(db,'messages',message.id),{
+          readAt:serverTimestamp(),
+          readByUid:user.uid,
+        })
+      ));
     },
   };
 
@@ -351,7 +350,7 @@ export function DinoProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useDino() {
-  const value = useContext(DinoContext);
+  const value=useContext(DinoContext);
   if (!value) throw new Error('useDino debe usarse dentro de DinoProvider');
   return value;
 }
