@@ -58,7 +58,7 @@ if (!html.includes('data-open-tab="gift"')) errors.push('Falta acceso rápido a 
 if (!html.includes('data-open-tab="chat"')) errors.push('Falta acceso rápido al Chat desde Nosotros.');
 if (!html.includes('id="chatResolvingView"')) errors.push('Falta estado de resolución de DinoChat.');
 if (!html.includes('id="giftResolvingView"')) errors.push('Falta estado de resolución de Regalar.');
-if (!styles.includes('[hidden]{display:none!important}')) errors.push('Los estados hidden pueden ser anulados por CSS.');
+if (!css.includes('[hidden]{display:none!important}')) errors.push('Los estados hidden pueden ser anulados por CSS.');
 if (!app.includes('pairStateResolved')) errors.push('Falta distinguir estado DinoDúo pendiente de estado sin vínculo.');
 if (!app.includes('resizePairMessageInput')) errors.push('Falta autoajuste del compositor de DinoChat.');
 if (!app.includes('beginPairReply')) errors.push('Falta lógica para responder DinoMensajes.');
