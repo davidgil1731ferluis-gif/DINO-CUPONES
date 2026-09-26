@@ -1,0 +1,39 @@
+name: Validate DinoCupones Mobile
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "mobile/**"
+      - ".github/workflows/mobile.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-mobile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.13"
+
+      - name: Install mobile dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Validate mobile structure
+        run: npm run validate
+
+      - name: TypeScript
+        run: npm run typecheck
+
+      - name: Expo config
+        run: npx expo config --type public > /tmp/dinocupones-expo-config.txt
