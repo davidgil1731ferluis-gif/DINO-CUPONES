@@ -8,7 +8,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.glance.GlanceModifier
 import androidx.glance.Image
-import androidx.glance.action.actionStartActivity
+import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
@@ -32,7 +32,6 @@ import expo.modules.kotlin.modules.ModuleDefinition
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -101,32 +100,31 @@ private fun Frame(
   }
 }
 
-private suspend fun cacheMemories(context: Context, payload: JSONObject): JSONObject =
-  withContext(Dispatchers.IO) {
-    val incoming=payload.optJSONArray("memories") ?: JSONArray()
-    val output=JSONArray()
-    val directory=File(context.filesDir,"dino-widget-memories").apply { mkdirs() }
+private fun cacheMemories(context: Context, payload: JSONObject): JSONObject {
+  val incoming=payload.optJSONArray("memories") ?: JSONArray()
+  val output=JSONArray()
+  val directory=File(context.filesDir,"dino-widget-memories").apply { mkdirs() }
 
-    for (index in 0 until minOf(incoming.length(),6)) {
-      val memory=incoming.optJSONObject(index) ?: continue
-      val mediaUrl=memory.optString("mediaUrl")
-      if (mediaUrl.isNotBlank()) {
-        val target=File(directory,"memory-$index.img")
-        runCatching {
-          URL(mediaUrl).openStream().use { input ->
-            target.outputStream().use { outputStream ->
-              input.copyTo(outputStream)
-            }
+  for (index in 0 until minOf(incoming.length(),6)) {
+    val memory=incoming.optJSONObject(index) ?: continue
+    val mediaUrl=memory.optString("mediaUrl")
+    if (mediaUrl.isNotBlank()) {
+      val target=File(directory,"memory-$index.img")
+      runCatching {
+        URL(mediaUrl).openStream().use { input ->
+          target.outputStream().use { outputStream ->
+            input.copyTo(outputStream)
           }
-          memory.put("localPath",target.absolutePath)
         }
+        memory.put("localPath",target.absolutePath)
       }
-      output.put(memory)
     }
-
-    payload.put("memories",output)
-    payload
+    output.put(memory)
   }
+
+  payload.put("memories",output)
+  return payload
+}
 
 class DinoMemoriesWidget: GlanceAppWidget() {
   override suspend fun provideGlance(context: Context,id: androidx.glance.GlanceId) {
