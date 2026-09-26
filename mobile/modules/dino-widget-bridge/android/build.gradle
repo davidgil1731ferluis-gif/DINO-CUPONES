@@ -16,6 +16,9 @@ version = '0.1.0'
 
 android {
   namespace "expo.modules.dinowidgetbridge"
+  defaultConfig {
+    versionName "0.1.0"
+  }
   buildFeatures {
     compose true
   }
