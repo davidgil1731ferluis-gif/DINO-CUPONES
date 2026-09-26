@@ -111,7 +111,7 @@
     revealLetter();
   }
 
-  const APP_BUILD = '20260926-phase1-cinematic3';
+  const APP_BUILD = '20260926-phase1-icon1';
   let updateReloading = false;
 
   async function checkForUpdate(forceReload = false) {

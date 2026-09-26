@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dinocupones-shell-v16-phase1-entry';
+const CACHE_NAME = 'dinocupones-shell-v17-official-icon';
 const APP_SHELL = [
   './index.html',
   './manifest.webmanifest',
@@ -6,6 +6,7 @@ const APP_SHELL = [
   './assets/icons/dinocupones-180.png',
   './assets/icons/dinocupones-192.png',
   './assets/icons/dinocupones-512.png',
+  './assets/icons/dinocupones-maskable-512.png',
   './assets/triceratops-deliver.png',
   './assets/triceratops-run.png',
   './assets/triceratops-exit.png'
