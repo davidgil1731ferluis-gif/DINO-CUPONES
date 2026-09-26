@@ -1,11 +1,14 @@
-const CACHE_NAME = 'dinocupones-shell-v14';
+const CACHE_NAME = 'dinocupones-shell-v15-phase1';
 const APP_SHELL = [
   './index.html',
   './manifest.webmanifest',
   './assets/dino-heart.svg',
   './assets/icons/dinocupones-180.png',
   './assets/icons/dinocupones-192.png',
-  './assets/icons/dinocupones-512.png'
+  './assets/icons/dinocupones-512.png',
+  './assets/triceratops-deliver.png',
+  './assets/triceratops-run.png',
+  './assets/triceratops-exit.png'
 ];
 
 async function cacheFreshShell() {

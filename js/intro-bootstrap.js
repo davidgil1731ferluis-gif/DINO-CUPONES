@@ -100,7 +100,7 @@
     revealLetter();
   }
 
-  const APP_BUILD = '20260926-phase1';
+  const APP_BUILD = '20260926-phase1-stable';
   let updateReloading = false;
 
   async function checkForUpdate(forceReload = false) {
@@ -159,6 +159,16 @@
 
   function setup() {
     registerAppServiceWorker();
+
+    const introBackground = $('.intro-bg-image');
+    if (introBackground) {
+      const markFallback = () => {
+        introBackground.dataset.loadError = 'true';
+        document.documentElement.classList.add('intro-bg-fallback');
+      };
+      introBackground.addEventListener('error', markFallback, { once: true });
+      if (introBackground.complete && introBackground.naturalWidth === 0) markFallback();
+    }
     const assets = [
       $('.intro-bg-image'),
       $('#dinoRun'),
