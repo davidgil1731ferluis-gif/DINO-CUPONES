@@ -34,6 +34,7 @@ jobs:
           node --check /tmp/worker.mjs
           node --check tests/ui-contract.mjs
           node tests/ui-contract.mjs
+          node mobile/scripts/validate.mjs
       - name: Generate official PWA icon variants
         shell: bash
         run: |
