@@ -23,7 +23,7 @@
   <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js" crossorigin />
   <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./styles.css?v=20260926-phase1-cinematic3" />
+  <link rel="stylesheet" href="./styles.css?v=20260926-phase2-realtime1" />
 </head>
 <body>
   <div id="toast" class="toast" aria-live="polite"></div>
@@ -360,7 +360,7 @@
               <p>Desde aquí pueden enviarse mensajes y crear cupones que solo verá la persona que los recibe.</p>
             </div>
             <div class="pair-hero-actions">
-              <span class="pair-live-badge">Vínculo activo</span>
+              <span id="pairRealtimeStatus" class="pair-live-badge" data-state="connecting">Conectando…</span>
               <div class="pair-quick-actions" aria-label="Acciones rápidas">
                 <button class="pair-quick-btn" data-scroll-pair="#pairCouponForm" type="button">🎟️ Crear cupón</button>
                 <button class="pair-quick-btn" data-scroll-pair="#pairMessageForm" type="button">💌 Enviar mensaje</button>
@@ -384,16 +384,24 @@
               <button class="primary-btn wide" type="submit">Enviar DinoCupón</button>
             </form>
 
-            <form id="pairMessageForm" class="pair-card">
-              <div class="card-title"><span>💌</span><div><h4>Enviar un mensaje</h4><p>Un detalle corto que llegará directamente a su cuenta.</p></div></div>
+            <form id="pairMessageForm" class="pair-card pair-message-composer">
+              <div class="card-title"><span>💌</span><div><h4>Enviar un mensaje</h4><p>Se sincroniza al instante en el DinoDúo.</p></div></div>
+              <div class="pair-message-presets" aria-label="Mensajes rápidos">
+                <button type="button" data-pair-message-preset="Te extraño 💜">Te extraño 💜</button>
+                <button type="button" data-pair-message-preset="Tengo un plan para nosotros 👀">Tengo un plan 👀</button>
+                <button type="button" data-pair-message-preset="Gracias por estar conmigo ✨">Gracias ✨</button>
+              </div>
               <label><span>Título</span><input id="pairMessageTitle" maxlength="60" placeholder="Algo para ti..." /></label>
-              <label><span>Mensaje</span><textarea id="pairMessageBody" required maxlength="300" rows="5" placeholder="Quería recordarte que..."></textarea></label>
+              <label>
+                <span class="pair-field-row"><span>Mensaje</span><small id="pairMessageCounter">0/300</small></span>
+                <textarea id="pairMessageBody" required maxlength="300" rows="5" placeholder="Quería recordarte que..."></textarea>
+              </label>
               <button class="secondary-btn wide" type="submit">Enviar mensaje</button>
             </form>
 
             <section class="pair-card pair-conversation-card">
-              <div class="card-title"><span>🫶</span><div><h4>Nuestra conversación</h4><p>Mensajes entre las dos cuentas vinculadas.</p></div></div>
-              <div id="pairConversation" class="pair-conversation"></div>
+              <div class="card-title pair-conversation-title"><span>🫶</span><div><h4>Nuestra conversación</h4><p>Mensajes entre las dos cuentas vinculadas.</p></div><small id="pairConversationStatus" class="pair-conversation-status" data-state="connecting">Conectando…</small></div>
+              <div id="pairConversation" class="pair-conversation" aria-live="polite"></div>
             </section>
 
             <section class="pair-card pair-sent-card">
@@ -516,6 +524,24 @@
     </div>
   </dialog>
 
+  <dialog id="unlinkPairDialog" class="modal-dialog pair-unlink-dialog">
+    <div class="modal-card pair-unlink-dialog-card">
+      <button id="cancelUnlinkPairBtn" class="modal-close" type="button" aria-label="Cancelar desvinculación">×</button>
+      <span class="pair-unlink-dialog-icon" aria-hidden="true">💔</span>
+      <span class="eyebrow">Administrar DinoDúo</span>
+      <h3>¿Cerrar este vínculo?</h3>
+      <p>Tu DinoDúo con <strong id="unlinkPairDialogPartner">tu persona</strong> dejará de estar activo.</p>
+      <div class="pair-unlink-note">
+        <strong>Nada se borra.</strong>
+        <span>Los cupones, mensajes y recuerdos de este vínculo quedarán archivados y no se mezclarán con un DinoDúo futuro.</span>
+      </div>
+      <div class="pair-unlink-dialog-actions">
+        <button id="confirmUnlinkPairBtn" class="danger-btn" type="button">Sí, desvincular</button>
+        <button id="keepPairLinkedBtn" class="secondary-btn" type="button">Seguir conectados</button>
+      </div>
+    </div>
+  </dialog>
+
   <dialog id="installDialog" class="modal-dialog install-dialog">
     <div class="install-card">
       <button id="closeInstallDialogBtn" class="modal-close" type="button" aria-label="Cerrar">×</button>
@@ -554,6 +580,6 @@
 
   <script src="./js/intro-bootstrap.js?v=20260926-phase1-cinematic3" defer></script>
   <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
-  <script type="module" src="./js/app.js?v=20260926-phase1"></script>
+  <script type="module" src="./js/app.js?v=20260926-phase2-realtime1"></script>
 </body>
 </html>

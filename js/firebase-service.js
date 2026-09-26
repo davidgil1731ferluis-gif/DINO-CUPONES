@@ -484,6 +484,115 @@ export async function getPairForUser(uid) {
   return active[0] || null;
 }
 
+
+function activePairFromSnapshot(snapshot) {
+  return snapshot.docs
+    .map((doc)=>({id:doc.id,...doc.data(),createdAt:asDate(doc.data().createdAt)}))
+    .filter((pair)=>pair.active !== false)
+    .sort((a,b)=>asDate(b.createdAt)-asDate(a.createdAt))[0] || null;
+}
+
+export function subscribePairForUser(uid, callback, onError=()=>{}) {
+  if (!uid || typeof callback !== 'function') return ()=>{};
+
+  if (!configured) {
+    queueMicrotask(()=>callback(
+      demoPair.active && demoPair.memberUids.includes(uid) ? {...demoPair} : null
+    ));
+    return ()=>{};
+  }
+
+  let cancelled=false;
+  let unsubscribe=()=>{};
+
+  ensureFirebase()
+    .then(()=>{
+      if (cancelled) return;
+      const queryRef=fsMod.query(
+        fsMod.collection(db,'pairs'),
+        fsMod.where('memberUids','array-contains',uid)
+      );
+      unsubscribe=fsMod.onSnapshot(
+        queryRef,
+        (snapshot)=>{
+          if (cancelled) return;
+          Promise.resolve(callback(activePairFromSnapshot(snapshot))).catch(onError);
+        },
+        onError
+      );
+    })
+    .catch(onError);
+
+  return ()=>{
+    cancelled=true;
+    unsubscribe();
+  };
+}
+
+export function subscribePairMessages(pairId, uid, callback, onError=()=>{}) {
+  if (!pairId || !uid || typeof callback !== 'function') return ()=>{};
+
+  if (!configured) {
+    queueMicrotask(()=>callback(
+      demoMessages
+        .filter((message)=>message.pairId===pairId)
+        .map((message)=>({...message}))
+        .sort((a,b)=>asDate(a.createdAt)-asDate(b.createdAt))
+    ));
+    return ()=>{};
+  }
+
+  let cancelled=false;
+  let unsubscribers=[];
+  let received=new Map();
+  let sent=new Map();
+
+  const emit=()=>{
+    if (cancelled) return;
+    const unique=new Map([...received,...sent]);
+    const messages=[...unique.values()]
+      .sort((a,b)=>asDate(a.createdAt)-asDate(b.createdAt));
+    Promise.resolve(callback(messages)).catch(onError);
+  };
+
+  const consume=(target,snapshot)=>{
+    target.clear();
+    snapshot.docs.forEach((doc)=>{
+      const data=doc.data();
+      target.set(doc.id,{id:doc.id,...data,createdAt:asDate(data.createdAt)});
+    });
+    emit();
+  };
+
+  ensureFirebase()
+    .then(()=>{
+      if (cancelled) return;
+      const base=fsMod.collection(db,'messages');
+      const receivedQuery=fsMod.query(
+        base,
+        fsMod.where('pairId','==',pairId),
+        fsMod.where('targetUid','==',uid)
+      );
+      const sentQuery=fsMod.query(
+        base,
+        fsMod.where('pairId','==',pairId),
+        fsMod.where('senderUid','==',uid)
+      );
+
+      unsubscribers=[
+        fsMod.onSnapshot(receivedQuery,(snapshot)=>consume(received,snapshot),onError),
+        fsMod.onSnapshot(sentQuery,(snapshot)=>consume(sent,snapshot),onError)
+      ];
+    })
+    .catch(onError);
+
+  return ()=>{
+    cancelled=true;
+    unsubscribers.forEach((unsubscribe)=>unsubscribe());
+    unsubscribers=[];
+  };
+}
+
 export async function createPairInvite({uid,displayName}) {
   if(configured) await ensureFirebase();
   const activePair = await getPairForUser(uid);

@@ -11,6 +11,7 @@ import {
   deleteCurrentAccount,
   getProfile,
   getPairForUser,
+  subscribePairForUser,
   createPairInvite,
   acceptPairInvite,
   unlinkPair,
@@ -27,6 +28,7 @@ import {
   deleteMural,
   listMessages,
   listPairMessages,
+  subscribePairMessages,
   sendMessage,
   markMessageRead,
   listUsers,
@@ -36,7 +38,7 @@ import {
   identifyPushUser,
   clearPushUser,
   onForegroundMessage
-} from './firebase-service.js?v=20260926-phase1';
+} from './firebase-service.js?v=20260926-phase2-realtime1';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -55,6 +57,11 @@ let currentPair = null;
 let partnerUid = null;
 let partnerName = '';
 let pairSyncInFlight = false;
+let stopPairSubscription = ()=>{};
+let stopPairMessageSubscription = ()=>{};
+let realtimePairId = null;
+let pairMessageRealtimePrimed = false;
+let localPairMutationUntil = 0;
 let filter = 'active';
 let couponView = 'received';
 let localDemoMedia = [];
@@ -317,6 +324,7 @@ function setAuthMode(mode = 'login') {
 }
 
 function resetSessionState() {
+  stopPairRealtimeConnections();
   currentUser = null;
   profile = null;
   coupons = [];
@@ -330,11 +338,13 @@ function resetSessionState() {
   currentPair = null;
   partnerUid = null;
   partnerName = '';
+  pairSyncInFlight = false;
+  localPairMutationUntil = 0;
   filter = 'active';
   couponView = 'received';
   $$('.chip').forEach((item) => item.classList.toggle('is-active', item.dataset.filter === 'active'));
   $$('[data-coupon-view]').forEach((item) => item.classList.toggle('is-active', item.dataset.couponView === 'received'));
-  ['#couponDialog','#uploadDialog','#muralViewerDialog','#installDialog','#accountDialog'].forEach((selector) => {
+  ['#couponDialog','#uploadDialog','#muralViewerDialog','#installDialog','#accountDialog','#unlinkPairDialog'].forEach((selector) => {
     const dialog = $(selector);
     if (dialog?.open) dialog.close();
   });
@@ -683,6 +693,7 @@ onAuth(async (user) => {
   if (firebaseReady && user) {
     await enterApp(user);
   } else if (firebaseReady && !user && !$('#introScreen').classList.contains('is-visible')) {
+    resetSessionState();
     showScreen('#authScreen');
   }
 });
@@ -722,6 +733,8 @@ async function enterApp(user) {
     $('.tabbar').classList.toggle('has-admin', isAdmin);
 
     await refreshAll(resolvedPair);
+    bindPairMessagesRealtime(currentPair);
+    startPairRealtime(user.uid);
     enteredUserUid = user.uid;
     openRequestedTab();
 
@@ -865,6 +878,181 @@ function hidePairSetupStatus() {
   if (box) box.hidden = true;
 }
 
+
+function setPairRealtimeIndicator(state='live') {
+  const badge=$('#pairRealtimeStatus');
+  const conversation=$('#pairConversationStatus');
+  const labels={
+    connecting:'Conectando…',
+    live:'En vivo',
+    offline:'Reconectando…'
+  };
+  const text=labels[state] || labels.live;
+
+  if (badge) {
+    badge.dataset.state=state;
+    badge.textContent=text;
+  }
+  if (conversation) {
+    conversation.dataset.state=state;
+    conversation.textContent=state==='live' ? 'Mensajes sincronizados en vivo' : text;
+  }
+}
+
+function stopPairRealtimeConnections() {
+  stopPairSubscription();
+  stopPairMessageSubscription();
+  stopPairSubscription=()=>{};
+  stopPairMessageSubscription=()=>{};
+  realtimePairId=null;
+  pairMessageRealtimePrimed=false;
+}
+
+function bindPairMessagesRealtime(pair=currentPair) {
+  stopPairMessageSubscription();
+  stopPairMessageSubscription=()=>{};
+  realtimePairId=pair?.id || null;
+  pairMessageRealtimePrimed=false;
+
+  if (!pair?.id || !currentUser?.uid) {
+    setPairRealtimeIndicator('connecting');
+    return;
+  }
+
+  const pairId=pair.id;
+  const uid=currentUser.uid;
+  setPairRealtimeIndicator('connecting');
+
+  stopPairMessageSubscription=subscribePairMessages(
+    pairId,
+    uid,
+    async (nextMessages)=>{
+      if (currentUser?.uid!==uid || currentPair?.id!==pairId) return;
+
+      const knownIds=new Set(pairMessages.map((message)=>message.id));
+      const incoming=pairMessageRealtimePrimed
+        ? nextMessages.filter((message)=>message.targetUid===uid && !knownIds.has(message.id))
+        : [];
+
+      pairMessages=nextMessages;
+      renderPairConversation();
+      setPairRealtimeIndicator('live');
+
+      if (!pairMessageRealtimePrimed) {
+        pairMessageRealtimePrimed=true;
+        return;
+      }
+
+      if (!incoming.length) return;
+
+      playChime('soft');
+      const latest=incoming[incoming.length-1];
+      toast((latest.senderName || partnerName || 'Tu persona') + ' te escribió 💌');
+
+      const viewingPair=$('#pairTab')?.classList.contains('is-active')
+        && document.visibilityState==='visible';
+
+      if (viewingPair) {
+        await Promise.allSettled(incoming.map((message)=>markMessageRead(message.id)));
+      }
+
+      try {
+        messages=await listMessages(uid,currentPair?.id || null);
+        renderMessages();
+      } catch (error) {
+        console.warn('El mensaje llegó en vivo, pero no se pudo refrescar la bandeja.',error);
+      }
+    },
+    (error)=>{
+      console.warn('La conversación en vivo está reconectando.',error);
+      setPairRealtimeIndicator('offline');
+    }
+  );
+}
+
+async function applyRealtimePair(pair, uid) {
+  if (currentUser?.uid!==uid) return;
+
+  const previousId=currentPair?.id || null;
+  const nextId=pair?.id || null;
+
+  if (previousId===nextId) {
+    if (pair) {
+      currentPair=pair;
+      partnerUid=pair.memberUids?.find((memberUid)=>memberUid!==uid) || null;
+      partnerName=partnerUid
+        ? (pair.memberNames?.[partnerUid] || 'Tu persona favorita')
+        : '';
+      renderPairWorkspace();
+    }
+    return;
+  }
+
+  currentPair=pair;
+  partnerUid=pair?.memberUids?.find((memberUid)=>memberUid!==uid) || null;
+  partnerName=partnerUid
+    ? (pair?.memberNames?.[partnerUid] || 'Tu persona favorita')
+    : '';
+
+  if (pair) {
+    hidePairSetupStatus();
+    renderPairWorkspace();
+
+    if (Date.now()>localPairMutationUntil) {
+      showPairSuccess('Tu vínculo con ' + partnerName + ' ya está activo en tiempo real.');
+      playChime('complete');
+      toast(partnerName + ' aceptó el DinoDúo 💞');
+    }
+
+    await refreshAll(pair);
+    bindPairMessagesRealtime(pair);
+    return;
+  }
+
+  stopPairMessageSubscription();
+  stopPairMessageSubscription=()=>{};
+  realtimePairId=null;
+  pairMessages=[];
+  sentCoupons=[];
+  renderPairWorkspace();
+
+  if (previousId && Date.now()>localPairMutationUntil) {
+    showPairSetupStatus('El DinoDúo fue cerrado. Tu cuenta ya está libre para crear o aceptar un nuevo vínculo.');
+    toast('El DinoDúo se cerró en tiempo real.');
+  }
+
+  await refreshAll(null);
+}
+
+function startPairRealtime(uid) {
+  stopPairSubscription();
+  stopPairSubscription=()=>{};
+  if (!uid) return;
+
+  stopPairSubscription=subscribePairForUser(
+    uid,
+    (pair)=>applyRealtimePair(pair,uid),
+    (error)=>{
+      console.warn('El estado del DinoDúo está reconectando.',error);
+      setPairRealtimeIndicator('offline');
+    }
+  );
+}
+
+async function markVisiblePairMessagesRead() {
+  if (!currentUser?.uid || !currentPair?.id || document.visibilityState!=='visible') return;
+  const incoming=pairMessages.filter((message)=>message.targetUid===currentUser.uid);
+  if (!incoming.length) return;
+
+  await Promise.allSettled(incoming.map((message)=>markMessageRead(message.id)));
+  try {
+    messages=await listMessages(currentUser.uid,currentPair.id);
+    renderMessages();
+  } catch (error) {
+    console.warn('No se pudo actualizar el estado de lectura.',error);
+  }
+}
+
 async function syncPairState({announce=false,full=false}={}) {
   if (!currentUser?.uid || pairSyncInFlight) return;
   pairSyncInFlight = true;
@@ -880,6 +1068,7 @@ async function syncPairState({announce=false,full=false}={}) {
         ? (currentPair?.memberNames?.[partnerUid] || 'Tu persona favorita')
         : '';
       renderPairWorkspace();
+      bindPairMessagesRealtime(pair);
 
       if (pair) {
         hidePairSetupStatus();
@@ -1019,6 +1208,7 @@ $('#pairAcceptForm').onsubmit = async (event) => {
   const submitter = submitButton(event);
   setButtonBusy(submitter, true);
   try {
+    localPairMutationUntil=Date.now()+3500;
     const pair = await acceptPairInvite({
       uid: currentUser.uid,
       displayName: profile?.displayName || 'Dino',
@@ -1041,6 +1231,7 @@ $('#pairAcceptForm').onsubmit = async (event) => {
     // Cargamos el resto después de mostrar el éxito, para que una lectura secundaria
     // nunca oculte que el vínculo sí se creó.
     await refreshAll(pair);
+    bindPairMessagesRealtime(pair);
   } catch (error) {
     console.error(error);
     toast(error?.message || 'No se pudo completar el vínculo.');
@@ -1084,35 +1275,51 @@ $('#pairCouponForm').onsubmit = async (event) => {
   }
 };
 
-$('#unlinkPairBtn').onclick = async () => {
+function openUnlinkPairDialog() {
   if (!currentPair) return toast('No hay un DinoDúo activo.');
 
-  const partner = partnerName || 'tu persona';
-  const pairId = currentPair.id;
-  const confirmed = safeConfirm(
-    '¿Desvincular tu DinoDúo con ' + partner + '?\n\n' +
-    'Ambas cuentas quedarán libres para vincularse de nuevo. Los cupones, mensajes y recuerdos del vínculo anterior permanecerán archivados y no se mezclarán con uno nuevo.'
-  );
-  if (!confirmed) return;
+  const partner=partnerName || 'tu persona';
+  const partnerLabel=$('#unlinkPairDialogPartner');
+  if (partnerLabel) partnerLabel.textContent=partner;
 
-  const button = $('#unlinkPairBtn');
-  button.disabled = true;
-  button.textContent = 'Desvinculando...';
+  const dialog=$('#unlinkPairDialog');
+  if (dialog?.showModal) {
+    dialog.showModal();
+    return;
+  }
+
+  if (safeConfirm(
+    '¿Desvincular tu DinoDúo con ' + partner + '?\n\n' +
+    'Los cupones, mensajes y recuerdos anteriores quedarán archivados.'
+  )) {
+    performPairUnlink();
+  }
+}
+
+async function performPairUnlink() {
+  if (!currentPair) return;
+
+  const pairId=currentPair.id;
+  const button=$('#confirmUnlinkPairBtn') || $('#unlinkPairBtn');
+  setButtonBusy(button,true,'Desvinculando...');
+  localPairMutationUntil=Date.now()+4000;
 
   try {
-    await unlinkPair({ pairId, uid: currentUser.uid });
+    await unlinkPair({pairId,uid:currentUser.uid});
 
-    currentPair = null;
-    partnerUid = null;
-    partnerName = '';
-    pairMessages = [];
-    sentCoupons = [];
-    couponView = 'received';
+    currentPair=null;
+    partnerUid=null;
+    partnerName='';
+    pairMessages=[];
+    sentCoupons=[];
+    couponView='received';
+    bindPairMessagesRealtime(null);
 
-    document.querySelectorAll('[data-coupon-view]').forEach((item) => {
-      item.classList.toggle('is-active', item.dataset.couponView === 'received');
+    document.querySelectorAll('[data-coupon-view]').forEach((item)=>{
+      item.classList.toggle('is-active',item.dataset.couponView==='received');
     });
 
+    $('#unlinkPairDialog')?.close();
     renderPairWorkspace();
     showPairSetupStatus('El vínculo se cerró correctamente. Puedes generar un código nuevo o aceptar el de otra persona.');
     await refreshAll(null);
@@ -1123,10 +1330,35 @@ $('#unlinkPairBtn').onclick = async () => {
     console.error(error);
     toast(error?.message || 'No se pudo desvincular el DinoDúo.');
   } finally {
-    button.disabled = false;
-    button.textContent = '💔 Desvincular DinoDúo';
+    setButtonBusy(button,false);
   }
-};
+}
+
+$('#unlinkPairBtn').onclick = openUnlinkPairDialog;
+$('#cancelUnlinkPairBtn').onclick = () => $('#unlinkPairDialog').close();
+$('#keepPairLinkedBtn').onclick = () => $('#unlinkPairDialog').close();
+$('#confirmUnlinkPairBtn').onclick = performPairUnlink;
+
+
+function updatePairMessageCounter() {
+  const input=$('#pairMessageBody');
+  const counter=$('#pairMessageCounter');
+  if (!input || !counter) return;
+  counter.textContent=String(input.value.length) + '/300';
+}
+
+$('#pairMessageBody').addEventListener('input',updatePairMessageCounter);
+updatePairMessageCounter();
+
+document.querySelectorAll('[data-pair-message-preset]').forEach((button)=>{
+  button.onclick=()=>{
+    const input=$('#pairMessageBody');
+    if (!input) return;
+    input.value=button.dataset.pairMessagePreset || '';
+    input.focus();
+    updatePairMessageCounter();
+  };
+});
 
 $('#pairMessageForm').onsubmit = async (event) => {
   event.preventDefault();
@@ -1145,12 +1377,15 @@ $('#pairMessageForm').onsubmit = async (event) => {
     });
 
     event.target.reset();
+    updatePairMessageCounter();
 
-    try {
-      pairMessages = await listPairMessages(currentPair.id,currentUser.uid);
-      renderPairConversation();
-    } catch (refreshError) {
-      console.warn('El mensaje se envió, pero la conversación todavía no pudo refrescarse.',refreshError);
+    if (!realtimePairId) {
+      try {
+        pairMessages=await listPairMessages(currentPair.id,currentUser.uid);
+        renderPairConversation();
+      } catch (refreshError) {
+        console.warn('El mensaje se envió, pero la conversación todavía no pudo refrescarse.',refreshError);
+      }
     }
 
     playChime('soft');
@@ -1190,8 +1425,9 @@ function activateMainTab(tab, { sync = true } = {}) {
   document.querySelectorAll('.tab-panel').forEach((item) => item.classList.remove('is-active'));
   panel.classList.add('is-active');
 
-  if (tab === 'pair' && sync) {
-    syncPairState({announce:true,full:true});
+  if (tab === 'pair') {
+    if (sync) syncPairState({announce:false,full:false});
+    markVisiblePairMessagesRead();
   }
   return true;
 }

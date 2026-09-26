@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dinocupones-shell-v17-official-icon';
+const CACHE_NAME = 'dinocupones-shell-v18-phase2-realtime';
 const APP_SHELL = [
   './index.html',
   './manifest.webmanifest',

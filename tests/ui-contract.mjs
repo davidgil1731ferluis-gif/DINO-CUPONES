@@ -46,6 +46,11 @@ if (app.includes('$document') || app.includes('$window')) {
 
 if (!app.includes('registerAccount')) errors.push('El flujo de registro no está conectado en app.js.');
 if (!service.includes('export async function registerAccount')) errors.push('Falta registerAccount en firebase-service.js.');
+if (!service.includes('export function subscribePairForUser')) errors.push('Falta sincronización en vivo del DinoDúo.');
+if (!service.includes('export function subscribePairMessages')) errors.push('Falta sincronización en vivo de DinoMensajes.');
+if (!app.includes('startPairRealtime')) errors.push('app.js no inicia la sincronización en vivo del DinoDúo.');
+if (!html.includes('id="pairRealtimeStatus"')) errors.push('Falta indicador visual de sincronización del DinoDúo.');
+if (!html.includes('id="unlinkPairDialog"')) errors.push('Falta confirmación propia para desvincular DinoDúo.');
 if (!html.includes('intro-bootstrap.js')) errors.push('Falta cargar intro-bootstrap.js en index.html.');
 if (!intro.includes('window.DinoIntro')) errors.push('El bootstrap de la intro no expone DinoIntro.');
 if (!html.includes('id="unlinkPairBtn"')) errors.push('Falta el botón para desvincular DinoDúo.');
@@ -69,7 +74,7 @@ if (/await import\('https:\/\/www\.gstatic\.com/.test(beforeEnsure)) {
 const required = [
   'skipIntroBtn','openLetterBtn','continueToLoginBtn',
   'loginForm','registerForm','showLoginBtn','showRegisterBtn','demoAccessBtn',
-  'logoutBtn','notificationBtn','openUploadBtn','generatePairCodeBtn','unlinkPairBtn','updateAppBtn','testPushBtn','keepSessionCheckbox','muralWidgetOpenBtn',
+  'logoutBtn','notificationBtn','openUploadBtn','generatePairCodeBtn','unlinkPairBtn','confirmUnlinkPairBtn','cancelUnlinkPairBtn','keepPairLinkedBtn','updateAppBtn','testPushBtn','keepSessionCheckbox','muralWidgetOpenBtn',
   'pairCouponForm','pairMessageForm','couponForm','messageForm'
 ];
 for (const id of required) {
