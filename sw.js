@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dinocupones-shell-v21-phase2-restored';
+const CACHE_NAME = 'dinocupones-shell-v22-phase2-final';
 const APP_SHELL = [
   './index.html',
   './manifest.webmanifest',

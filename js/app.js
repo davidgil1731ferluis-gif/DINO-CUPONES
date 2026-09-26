@@ -38,7 +38,7 @@ import {
   identifyPushUser,
   clearPushUser,
   onForegroundMessage
-} from './firebase-service.js?v=20260926-phase2-restored1';
+} from './firebase-service.js?v=20260926-phase2-final';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -61,6 +61,7 @@ let stopPairSubscription = ()=>{};
 let stopPairMessageSubscription = ()=>{};
 let realtimePairId = null;
 let pairMessageRealtimePrimed = false;
+let pairStateResolved = false;
 let replyingToMessage = null;
 let localPairMutationUntil = 0;
 let filter = 'active';
@@ -341,6 +342,7 @@ function resetSessionState() {
   partnerName = '';
   pairSyncInFlight = false;
   localPairMutationUntil = 0;
+  pairStateResolved = false;
   replyingToMessage = null;
   filter = 'active';
   couponView = 'received';
@@ -760,6 +762,7 @@ async function refreshAll(pairOverride = undefined) {
   currentPair = pairOverride !== undefined
     ? pairOverride
     : await getPairForUser(currentUser.uid);
+  pairStateResolved = true;
 
   partnerUid = currentPair?.memberUids?.find((uid) => uid !== currentUser.uid) || null;
   partnerName = partnerUid
@@ -975,6 +978,7 @@ function bindPairMessagesRealtime(pair=currentPair) {
 async function applyRealtimePair(pair, uid) {
   if (currentUser?.uid!==uid) return;
 
+  pairStateResolved=true;
   const previousId=currentPair?.id || null;
   const nextId=pair?.id || null;
 
@@ -1066,6 +1070,7 @@ async function syncPairState({announce=false,full=false}={}) {
   pairSyncInFlight = true;
   try {
     const pair = await getPairForUser(currentUser.uid);
+    pairStateResolved = true;
     const previousId = currentPair?.id || null;
     const nextId = pair?.id || null;
 
@@ -1103,17 +1108,35 @@ async function syncPairState({announce=false,full=false}={}) {
 function renderPairWorkspace() {
   const setup=$('#pairSetupView');
   const connected=$('#pairConnectedView');
+  const chatResolving=$('#chatResolvingView');
   const chatLocked=$('#chatLockedView');
   const chatConnected=$('#chatConnectedView');
+  const giftResolving=$('#giftResolvingView');
   const giftLocked=$('#giftLockedView');
   const giftConnected=$('#giftConnectedView');
   if (!setup || !connected) return;
 
+  if (!pairStateResolved) {
+    setup.hidden=true;
+    connected.hidden=true;
+    if (chatResolving) chatResolving.hidden=false;
+    if (chatLocked) chatLocked.hidden=true;
+    if (chatConnected) chatConnected.hidden=true;
+    if (giftResolving) giftResolving.hidden=false;
+    if (giftLocked) giftLocked.hidden=true;
+    if (giftConnected) giftConnected.hidden=true;
+    return;
+  }
+
   const hasPair=Boolean(currentPair && partnerUid);
   setup.hidden=hasPair;
   connected.hidden=!hasPair;
+
+  if (chatResolving) chatResolving.hidden=true;
   if (chatLocked) chatLocked.hidden=hasPair;
   if (chatConnected) chatConnected.hidden=!hasPair;
+
+  if (giftResolving) giftResolving.hidden=true;
   if (giftLocked) giftLocked.hidden=hasPair;
   if (giftConnected) giftConnected.hidden=!hasPair;
 
@@ -1134,6 +1157,7 @@ function renderPairWorkspace() {
   $('#pairAvatarMe').textContent=myName.charAt(0).toUpperCase();
   $('#pairAvatarPartner').textContent=partnerInitial;
   $('#chatPartnerName').textContent=partnerName;
+  $('#chatHeadingPartnerName').textContent=partnerName;
   $('#chatPartnerAvatar').textContent=partnerInitial;
 
   renderPairConversation();
@@ -1243,9 +1267,14 @@ function renderPairConversation() {
       ? '<span class="pair-message-status '+(message.readAt?'is-read':'')+'">'+(message.readAt?'✓✓':'✓')+'</span>'
       : '';
 
+    const title=message.title && message.title!==((message.senderName || 'Tu persona')+' te escribió 💜')
+      ? '<strong class="pair-message-title">'+escapeHtml(message.title)+'</strong>'
+      : '';
+
     return separator+
       '<article class="pair-message '+(mine?'is-mine':'is-theirs')+'" data-message-id="'+escapeHtml(message.id)+'">'+
         reply+
+        title+
         '<p>'+escapeHtml(message.body || message.title || '')+'</p>'+
         '<footer>'+
           '<button class="pair-message-reply-btn" type="button" data-reply-message-id="'+escapeHtml(message.id)+'" aria-label="Responder mensaje">↩</button>'+
@@ -1476,6 +1505,13 @@ $('#keepPairLinkedBtn').onclick = () => $('#unlinkPairDialog').close();
 $('#confirmUnlinkPairBtn').onclick = performPairUnlink;
 
 
+function resizePairMessageInput() {
+  const input=$('#pairMessageBody');
+  if (!input) return;
+  input.style.height='auto';
+  input.style.height=Math.min(Math.max(input.scrollHeight,46),126)+'px';
+}
+
 function updatePairMessageCounter() {
   const input=$('#pairMessageBody');
   const counter=$('#pairMessageCounter');
@@ -1485,8 +1521,12 @@ function updatePairMessageCounter() {
 
 $('#cancelPairReplyBtn').onclick=clearPairReply;
 
-$('#pairMessageBody').addEventListener('input',updatePairMessageCounter);
+$('#pairMessageBody').addEventListener('input',()=>{
+  updatePairMessageCounter();
+  resizePairMessageInput();
+});
 updatePairMessageCounter();
+resizePairMessageInput();
 
 document.querySelectorAll('[data-pair-message-preset]').forEach((button)=>{
   button.onclick=()=>{
@@ -1495,6 +1535,7 @@ document.querySelectorAll('[data-pair-message-preset]').forEach((button)=>{
     input.value=button.dataset.pairMessagePreset || '';
     input.focus();
     updatePairMessageCounter();
+    resizePairMessageInput();
   };
 });
 
@@ -1520,6 +1561,7 @@ $('#pairMessageForm').onsubmit = async (event) => {
     event.target.reset();
     clearPairReply();
     updatePairMessageCounter();
+    resizePairMessageInput();
 
     if (!realtimePairId) {
       try {

@@ -4599,3 +4599,68 @@ input,textarea,select,button{max-width:100%}
     margin-top:18px;
   }
 }
+
+
+/* === PHASE 2 FINAL STABILIZATION 2026-09-26 === */
+/* Hidden must always win over component display declarations. */
+[hidden]{display:none!important}
+
+.feature-resolving-card{
+  width:min(470px,100%);
+  margin:44px auto;
+  padding:34px 26px;
+  display:grid;
+  justify-items:center;
+  gap:7px;
+  text-align:center;
+  border:1px solid rgba(107,75,121,.1);
+  border-radius:28px;
+  background:linear-gradient(155deg,rgba(255,255,255,.94),rgba(251,246,253,.9));
+  box-shadow:0 16px 42px rgba(61,39,72,.07);
+}
+.feature-resolving-dino{
+  width:62px;
+  height:62px;
+  display:grid;
+  place-items:center;
+  border-radius:21px;
+  background:linear-gradient(145deg,#eee1fb,#ffe5f0);
+  font-size:1.75rem;
+  animation:phase2DinoWait 1.6s ease-in-out infinite;
+}
+.feature-resolving-card strong{
+  color:#4e3459;
+  font-size:1.02rem;
+}
+.feature-resolving-card small{
+  color:#917e95;
+  font-size:.76rem;
+}
+@keyframes phase2DinoWait{
+  0%,100%{transform:translateY(0) rotate(-2deg)}
+  50%{transform:translateY(-4px) rotate(2deg)}
+}
+
+.pair-message-title{
+  display:block;
+  margin:0 0 4px;
+  color:inherit;
+  font-size:.72rem;
+  font-weight:900;
+  line-height:1.25;
+}
+.pair-message.is-theirs .pair-message-title{color:#67466f}
+.pair-message.is-mine .pair-message-title{color:#fff}
+
+.chat-input-shell textarea{
+  overflow-y:auto;
+  transition:height .12s ease,border-color .18s ease,box-shadow .18s ease;
+}
+
+@media(max-width:760px){
+  .feature-resolving-card{
+    margin:24px auto;
+    padding:28px 20px;
+    border-radius:25px;
+  }
+}
