@@ -39,6 +39,9 @@ type DinoContextValue = {
   sendCoupon(input: { title: string; activity: string; expiresAt: Date }): Promise<void>;
   createPairInvite(): Promise<string>;
   acceptPairInvite(code: string): Promise<void>;
+  unlinkCurrentPair(): Promise<void>;
+  createPairInvite(): Promise<string>;
+  acceptPairInvite(code: string): Promise<void>;
   unlinkPair(): Promise<void>;
   createPairInvite(): Promise<string>;
   acceptPairInvite(code: string): Promise<void>;
@@ -211,6 +214,15 @@ export function DinoProvider({ children }: { children: React.ReactNode }) {
   const partnerUid = pair && user
     ? pair.memberUids.find((uid) => uid !== user.uid) || ''
     : '';
+
+  const randomCode = () => {
+    const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let value='';
+    for (let index=0; index<6; index+=1) {
+      value += alphabet[Math.floor(Math.random()*alphabet.length)];
+    }
+    return value;
+  };
 
   const value: DinoContextValue = {
     loading,

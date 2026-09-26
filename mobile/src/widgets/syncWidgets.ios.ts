@@ -1,77 +1,77 @@
-import * as FileSystem from 'expo-file-system/legacy';
+import { Directory, File } from 'expo-file-system';
 import { widgetsDirectory } from 'expo-widgets';
 import DinoMemoriesWidget from '@/widgets/DinoMemoriesWidget';
 import DinoCouponsWidget from '@/widgets/DinoCouponsWidget';
 import DinoMessagesWidget from '@/widgets/DinoMessagesWidget';
+import type { DinoMemory } from '@/src/types';
 import type { WidgetSnapshot } from './syncWidgets';
 
-async function cacheMemoryPhotos(snapshot: WidgetSnapshot) {
-  if (!widgetsDirectory) return [];
+const MAX_MEMORIES=6;
+const ROTATION_MS=60*60*1000;
 
-  const memories = snapshot.mural
-    .filter((item) => item.type === 'image' && item.mediaUrl)
-    .slice(0, 4);
+function extensionFor(url: string) {
+  const match=url.match(/\.(png|jpe?g|webp)(?:\?|$)/i);
+  return match?.[1]?.toLowerCase() || 'jpg';
+}
 
-  const root = widgetsDirectory.replace(/\/$/, '');
-  const cached = [];
-
-  for (let index = 0; index < memories.length; index += 1) {
-    const memory = memories[index];
-    const destination = root + '/dinomemory-' + index + '.jpg';
-    try {
-      const file = await FileSystem.downloadAsync(memory.mediaUrl!, destination);
-      cached.push({
-        path: file.uri,
-        caption: memory.caption || 'Un recuerdo de ustedes 💜',
-      });
-    } catch (error) {
-      console.warn('No se pudo preparar una foto para DinoRecuerdos.', error);
-    }
-  }
-
-  return cached;
+async function cacheMemory(memory: DinoMemory, index: number) {
+  if (!widgetsDirectory || !memory.mediaUrl || memory.type !== 'image') return '';
+  const directory=new Directory(widgetsDirectory);
+  const file=new File(directory,'dino-memory-'+index+'.'+extensionFor(memory.mediaUrl));
+  await File.downloadFileAsync(memory.mediaUrl,file,{idempotent:true});
+  return file.uri;
 }
 
 export async function syncWidgets(snapshot: WidgetSnapshot) {
-  const active = snapshot.coupons.filter((item) => item.status === 'active');
-  const latestMessage = snapshot.messages.at(-1);
-  const unread = snapshot.messages.filter(
-    (item) => item.targetUid === snapshot.currentUid && !item.readAt
+  const active=snapshot.coupons.filter((item)=>item.status==='active');
+  const latestMessage=snapshot.messages.at(-1);
+  const unread=snapshot.messages.filter(
+    (item)=>item.targetUid===snapshot.currentUid && !item.readAt
   ).length;
 
-  const cachedMemories = await cacheMemoryPhotos(snapshot);
-  if (cachedMemories.length) {
-    DinoMemoriesWidget.updateTimeline(
-      cachedMemories.map((memory, index) => ({
-        date: new Date(Date.now() + index * 2 * 60 * 60 * 1000),
-        props: {
-          caption: memory.caption,
-          partnerName: snapshot.partnerName || 'DinoDúo',
-          photoPath: memory.path,
-        },
-      }))
-    );
+  const memories=snapshot.mural
+    .filter((item)=>item.type==='image' && item.mediaUrl)
+    .slice(0,MAX_MEMORIES);
+
+  const cached=await Promise.all(memories.map(async (memory,index)=>({
+    memory,
+    photoPath:await cacheMemory(memory,index).catch(()=> ''),
+  })));
+
+  if (cached.length) {
+    const now=Date.now();
+    DinoMemoriesWidget.updateTimeline(cached.map((item,index)=>({
+      date:new Date(now+index*ROTATION_MS),
+      props:{
+        caption:item.memory.caption || 'Un recuerdo de ustedes 💜',
+        partnerName:snapshot.partnerName || 'DinoDúo',
+        photoPath:item.photoPath,
+        deepLink:'dinocupones://mural',
+      },
+    })));
   } else {
     DinoMemoriesWidget.updateSnapshot({
-      caption: 'Un recuerdo de ustedes 💜',
-      partnerName: snapshot.partnerName || 'DinoDúo',
-      photoPath: '',
+      caption:'Un recuerdo de ustedes 💜',
+      partnerName:snapshot.partnerName || 'DinoDúo',
+      photoPath:'',
+      deepLink:'dinocupones://mural',
     });
   }
 
   DinoCouponsWidget.updateSnapshot({
-    count: active.length,
-    firstTitle: active[0]?.title || 'Sin cupones activos',
-    secondTitle: active[1]?.title || '',
-    thirdTitle: active[2]?.title || '',
-    emoji: active[0]?.emoji || '🎟️',
+    count:active.length,
+    nextTitle:active[0]?.title || 'Sin cupones activos',
+    secondTitle:active[1]?.title || '',
+    emoji:active[0]?.emoji || '🎟️',
+    deepLink:'dinocupones://coupons',
   });
 
   DinoMessagesWidget.updateSnapshot({
-    sender: latestMessage?.senderUid === snapshot.currentUid
+    sender:latestMessage?.senderUid===snapshot.currentUid
       ? 'Tú'
       : (latestMessage?.senderName || snapshot.partnerName || 'Tu persona'),
-    body: latestMessage?.body || 'Sin mensajes todavía',
+    body:latestMessage?.body || 'Sin mensajes todavía',
     unread,
+    deepLink:'dinocupones://chat',
   });
 }
