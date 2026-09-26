@@ -4,6 +4,7 @@ const html = fs.readFileSync('index.html', 'utf8');
 const app = fs.readFileSync('js/app.js', 'utf8');
 const service = fs.readFileSync('js/firebase-service.js', 'utf8');
 const intro = fs.readFileSync('js/intro-bootstrap.js', 'utf8');
+const styles = fs.readFileSync('styles.css', 'utf8');
 
 const errors = [];
 const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map(match => match[1]);
@@ -58,7 +59,7 @@ if (!html.includes('data-open-tab="gift"')) errors.push('Falta acceso rápido a 
 if (!html.includes('data-open-tab="chat"')) errors.push('Falta acceso rápido al Chat desde Nosotros.');
 if (!html.includes('id="chatResolvingView"')) errors.push('Falta estado de resolución de DinoChat.');
 if (!html.includes('id="giftResolvingView"')) errors.push('Falta estado de resolución de Regalar.');
-if (!css.includes('[hidden]{display:none!important}')) errors.push('Los estados hidden pueden ser anulados por CSS.');
+if (!styles.includes('[hidden]{display:none!important}')) errors.push('Los estados hidden pueden ser anulados por CSS.');
 if (!app.includes('pairStateResolved')) errors.push('Falta distinguir estado DinoDúo pendiente de estado sin vínculo.');
 if (!app.includes('resizePairMessageInput')) errors.push('Falta autoajuste del compositor de DinoChat.');
 if (!app.includes('beginPairReply')) errors.push('Falta lógica para responder DinoMensajes.');
