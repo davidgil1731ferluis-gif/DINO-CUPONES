@@ -23,7 +23,7 @@
   <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js" crossorigin />
   <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./styles.css?v=20260926-phase2-proapp3" />
+  <link rel="stylesheet" href="./styles.css?v=20260926-phase2-restored1" />
 </head>
 <body>
   <div id="toast" class="toast" aria-live="polite"></div>
@@ -221,17 +221,39 @@
     </header>
 
     <main class="app-shell">
-      <section class="app-overview" aria-label="Resumen">
-        <div class="app-overview-main">
+      <section class="hero-dashboard">
+        <div>
+          <span class="eyebrow">Tu colección de momentos</span>
+          <h2>Un cupón puede convertirse en la cita favorita de ambos.</h2>
+          <p>Revisa lo que está disponible, completa lo que ya empezó y guarda cada plan en el DinoMural. Chat, regalos y DinoDúo están separados para que cada cosa tenga su propio espacio.</p>
+          <div class="hero-stats" aria-label="Resumen de cupones">
+            <div class="hero-stat"><span id="statActive">0</span><small>Activos</small></div>
+            <div class="hero-stat"><span id="statPending">0</span><small>En curso</small></div>
+            <div class="hero-stat"><span id="statCompleted">0</span><small>Canjeados</small></div>
+          </div>
+        </div>
+        <div class="hero-dino-card">
+          <div class="hero-card-decoration"></div>
+          <div class="hero-dino">🦖</div>
           <span>Próxima aventura</span>
           <strong id="nextCouponTitle">Cargando...</strong>
         </div>
-        <div class="app-overview-stats" aria-label="Resumen de cupones">
-          <div><strong id="statActive">0</strong><span>Activos</span></div>
-          <div><strong id="statPending">0</strong><span>En curso</span></div>
-          <div><strong id="statCompleted">0</strong><span>Canjeados</span></div>
-        </div>
       </section>
+
+      <aside id="muralWidget" class="mural-widget" hidden aria-label="Widget de recuerdos del DinoMural">
+        <button id="muralWidgetOpenBtn" class="mural-widget-button" type="button">
+          <div class="mural-widget-photo">
+            <img id="muralWidgetImage" src="" alt="Recuerdo del DinoMural" />
+            <span class="mural-widget-badge">📸 DinoWidget</span>
+          </div>
+          <div class="mural-widget-copy">
+            <span class="eyebrow">Un recuerdo de ustedes</span>
+            <strong id="muralWidgetCaption">DinoMural</strong>
+            <small id="muralWidgetMeta">Toca para abrir el recuerdo.</small>
+            <div id="muralWidgetDots" class="mural-widget-dots" aria-hidden="true"></div>
+          </div>
+        </button>
+      </aside>
 
       <nav class="tabbar" aria-label="Navegación principal">
         <button class="tab-btn is-active" data-tab="coupons" type="button"><span>🎟️</span><small>Cupones</small></button>
@@ -242,9 +264,11 @@
       </nav>
 
       <section id="couponsTab" class="tab-panel is-active">
-        <div class="section-heading professional-heading coupon-heading">
+        <div class="section-heading coupon-heading">
           <div>
+            <span class="eyebrow">Tus aventuras</span>
             <h3>Cupones</h3>
+            <p class="section-support-copy">Aquí están los planes que recibiste y los que ya regalaste.</p>
             <div class="coupon-view-switch" aria-label="Vista de cupones">
               <button class="coupon-view-btn is-active" data-coupon-view="received" type="button">Recibidos</button>
               <button class="coupon-view-btn" data-coupon-view="sent" type="button">Enviados</button>
@@ -252,7 +276,7 @@
           </div>
           <div class="filter-chips" id="couponFilters">
             <button class="chip is-active" data-filter="active" type="button">Activos</button>
-            <button class="chip" data-filter="pending" type="button">En curso</button>
+            <button class="chip" data-filter="pending" type="button">Por completar</button>
             <button class="chip" data-filter="completed" type="button">Canjeados</button>
             <button class="chip" data-filter="expired" type="button">Vencidos</button>
           </div>
@@ -261,76 +285,103 @@
       </section>
 
       <section id="chatTab" class="tab-panel">
-        <div id="chatLockedView" class="feature-lock-card">
+        <div id="chatLockedView" class="feature-lock-card rich-lock-card">
           <span class="feature-lock-icon">💬</span>
-          <strong>Chat de DinoDúo</strong>
-          <p>Vincula tu DinoDúo para conversar.</p>
+          <span class="eyebrow">DinoMensajes</span>
+          <strong>Una conversación solo de ustedes.</strong>
+          <p>Vincula tu DinoDúo para activar mensajes privados, respuestas, lectura y sincronización en tiempo real.</p>
           <button class="primary-btn" data-open-tab="pair" type="button">Conectar DinoDúo</button>
         </div>
 
-        <div id="chatConnectedView" class="chat-page" hidden>
-          <header class="chat-page-header">
-            <div class="chat-partner-avatar" id="chatPartnerAvatar">P</div>
+        <div id="chatConnectedView" class="chat-section-shell" hidden>
+          <div class="section-heading chat-section-heading">
             <div>
-              <strong id="chatPartnerName">Tu persona</strong>
-              <small id="pairConversationStatus" class="pair-conversation-status" data-state="connecting">Conectando…</small>
+              <span class="eyebrow">DinoMensajes</span>
+              <h3>Nuestra conversación</h3>
+              <p class="section-support-copy">Mensajes privados entre las dos cuentas del DinoDúo, sincronizados en tiempo real.</p>
             </div>
-          </header>
+          </div>
 
-          <div id="pairConversation" class="pair-conversation professional-chat" aria-live="polite"></div>
-
-          <form id="pairMessageForm" class="chat-composer">
-            <div id="pairReplyPreview" class="pair-reply-preview" hidden>
+          <div class="chat-page">
+            <header class="chat-page-header">
+              <div class="chat-partner-avatar" id="chatPartnerAvatar">P</div>
               <div>
-                <strong id="pairReplyAuthor">Responder</strong>
-                <span id="pairReplyBody"></span>
+                <strong id="chatPartnerName">Tu persona</strong>
+                <small id="pairConversationStatus" class="pair-conversation-status" data-state="connecting">Conectando…</small>
               </div>
-              <button id="cancelPairReplyBtn" type="button" aria-label="Cancelar respuesta">×</button>
-            </div>
-            <div class="pair-message-presets" aria-label="Mensajes rápidos">
-              <button type="button" data-pair-message-preset="Te extraño 💜">Te extraño 💜</button>
-              <button type="button" data-pair-message-preset="Tengo un plan para nosotros 👀">Tengo un plan 👀</button>
-              <button type="button" data-pair-message-preset="Gracias por estar conmigo ✨">Gracias ✨</button>
-            </div>
-            <div class="chat-composer-row">
-              <label class="chat-input-shell">
-                <textarea id="pairMessageBody" required maxlength="300" rows="1" placeholder="Escribe un mensaje..."></textarea>
-                <small id="pairMessageCounter">0/300</small>
+            </header>
+
+            <div id="pairConversation" class="pair-conversation professional-chat" aria-live="polite"></div>
+
+            <form id="pairMessageForm" class="chat-composer">
+              <div id="pairReplyPreview" class="pair-reply-preview" hidden>
+                <div>
+                  <strong id="pairReplyAuthor">Responder</strong>
+                  <span id="pairReplyBody"></span>
+                </div>
+                <button id="cancelPairReplyBtn" type="button" aria-label="Cancelar respuesta">×</button>
+              </div>
+              <div class="pair-message-presets" aria-label="Mensajes rápidos">
+                <button type="button" data-pair-message-preset="Te extraño 💜">Te extraño 💜</button>
+                <button type="button" data-pair-message-preset="Tengo un plan para nosotros 👀">Tengo un plan 👀</button>
+                <button type="button" data-pair-message-preset="Gracias por estar conmigo ✨">Gracias ✨</button>
+              </div>
+              <label class="chat-subject-field">
+                <span>Título opcional</span>
+                <input id="pairMessageTitle" maxlength="60" placeholder="Algo para ti..." />
               </label>
-              <button class="chat-send-btn" type="submit" aria-label="Enviar mensaje">➤</button>
-            </div>
-          </form>
+              <div class="chat-composer-row">
+                <label class="chat-input-shell">
+                  <textarea id="pairMessageBody" required maxlength="300" rows="1" placeholder="Escribe un mensaje..."></textarea>
+                  <small id="pairMessageCounter">0/300</small>
+                </label>
+                <button class="chat-send-btn" type="submit" aria-label="Enviar mensaje">➤</button>
+              </div>
+            </form>
+          </div>
         </div>
       </section>
 
       <section id="giftTab" class="tab-panel">
-        <div id="giftLockedView" class="feature-lock-card">
+        <div id="giftLockedView" class="feature-lock-card rich-lock-card">
           <span class="feature-lock-icon">🎁</span>
-          <strong>Regala un DinoCupón</strong>
-          <p>Vincula tu DinoDúo para regalar cupones.</p>
+          <span class="eyebrow">DinoCupones privados</span>
+          <strong>Regala una aventura.</strong>
+          <p>Vincula tu DinoDúo para crear cupones que únicamente podrá ver la persona que los recibe.</p>
           <button class="primary-btn" data-open-tab="pair" type="button">Conectar DinoDúo</button>
         </div>
 
         <div id="giftConnectedView" class="gift-page" hidden>
-          <div class="section-heading professional-heading">
+          <div class="section-heading">
             <div>
-              <h3>Regalar</h3>
-              <p>Para <strong id="pairCouponRecipientName">tu persona</strong></p>
+              <span class="eyebrow">Un detalle para tu persona</span>
+              <h3>Regalar un DinoCupón</h3>
+              <p class="section-support-copy">El cupón aparecerá únicamente en la cuenta de <strong id="pairCouponRecipientName">tu persona</strong>.</p>
             </div>
           </div>
 
           <div class="gift-layout">
             <form id="pairCouponForm" class="pair-card gift-form-card">
+              <div class="card-title">
+                <span>🎟️</span>
+                <div>
+                  <h4>Crear un cupón</h4>
+                  <p>Convierte una idea en una experiencia que puedan canjear después.</p>
+                </div>
+              </div>
               <label><span>Nombre del cupón</span><input id="pairCouponTitle" required maxlength="80" placeholder="Picnic sorpresa" /></label>
-              <label><span>Plan</span><textarea id="pairCouponActivity" required maxlength="500" rows="4" placeholder="¿Qué incluye este cupón?"></textarea></label>
-              <label><span>Válido hasta</span><input id="pairCouponExpiry" type="datetime-local" required /></label>
+              <label><span>Actividad</span><textarea id="pairCouponActivity" required maxlength="500" rows="4" placeholder="Una tarde juntos con..."></textarea></label>
+              <label><span>Fecha de vencimiento</span><input id="pairCouponExpiry" type="datetime-local" required /></label>
               <button class="primary-btn wide" type="submit">Enviar DinoCupón 🎟️</button>
             </form>
 
             <section class="pair-card pair-sent-card gift-history-card">
-              <div class="compact-card-heading">
-                <strong>Enviados a <span id="pairSentRecipientName">tu persona</span></strong>
-                <small>Recientes</small>
+              <div class="card-title">
+                <span>🎁</span>
+                <div>
+                  <h4>Cupones enviados</h4>
+                  <p>Lo que ya regalaste a <strong id="pairSentRecipientName">tu persona</strong>.</p>
+                </div>
               </div>
               <div id="pairSentCoupons" class="pair-sent-list"></div>
             </section>
@@ -339,95 +390,101 @@
       </section>
 
       <section id="muralTab" class="tab-panel">
-        <div class="section-heading professional-heading mural-heading">
+        <div class="section-heading mural-heading">
           <div>
+            <span class="eyebrow">Nuestro archivo favorito</span>
             <h3>DinoMural</h3>
-            <p id="muralScopeLabel" class="mural-scope-label">Sus recuerdos.</p>
+            <p id="muralScopeLabel" class="mural-scope-label">Tus recuerdos privados.</p>
           </div>
-          <button id="openUploadBtn" class="primary-btn compact" type="button">+ Recuerdo</button>
+          <button id="openUploadBtn" class="primary-btn compact" type="button">+ Subir recuerdo</button>
         </div>
-
-        <aside id="muralWidget" class="mural-widget" hidden aria-label="Recuerdo destacado del DinoMural">
-          <button id="muralWidgetOpenBtn" class="mural-widget-button" type="button">
-            <div class="mural-widget-photo">
-              <img id="muralWidgetImage" src="" alt="Recuerdo del DinoMural" />
-            </div>
-            <div class="mural-widget-copy">
-              <strong id="muralWidgetCaption">DinoMural</strong>
-              <small id="muralWidgetMeta">Abrir recuerdo</small>
-              <div id="muralWidgetDots" class="mural-widget-dots" aria-hidden="true"></div>
-            </div>
-          </button>
-        </aside>
-
         <div id="muralGrid" class="mural-grid"></div>
       </section>
 
       <section id="pairTab" class="tab-panel">
-        <div class="section-heading professional-heading">
-          <div><h3>Nosotros</h3></div>
+        <div class="section-heading">
+          <div>
+            <span class="eyebrow">Conecta dos aventuras</span>
+            <h3>Nosotros</h3>
+            <p class="section-support-copy">Administra el DinoDúo y la conexión privada entre las dos cuentas.</p>
+          </div>
         </div>
 
-        <div id="pairSetupView" class="pair-setup-grid pair-setup-clean">
+        <div id="pairSetupView" class="pair-setup-grid">
+          <article class="pair-card pair-intro-card">
+            <span class="pair-card-icon">💞</span>
+            <div>
+              <span class="eyebrow">DinoDúo</span>
+              <h4>Vincula tu cuenta con tu persona favorita.</h4>
+              <p>Cada vínculo es privado. Los cupones y mensajes que creen entre ustedes quedarán asociados solo a ese DinoDúo.</p>
+            </div>
+          </article>
+
           <div id="pairSetupStatus" class="pair-setup-status" hidden role="status" aria-live="polite">
             <span>✓</span>
             <div>
-              <strong>DinoDúo cerrado</strong>
-              <p>Tu cuenta está lista para un nuevo vínculo.</p>
+              <strong>DinoDúo cerrado correctamente</strong>
+              <p>Tu cuenta ya está libre para crear o aceptar un nuevo vínculo.</p>
             </div>
           </div>
 
           <article class="pair-card">
-            <div class="compact-card-heading">
-              <strong>Crear invitación</strong>
-              <small>Comparte un código privado.</small>
-            </div>
+            <div class="card-title"><span>🔗</span><div><h4>Crear invitación</h4><p>Genera un código para compartir con la otra persona.</p></div></div>
             <button id="generatePairCodeBtn" class="primary-btn wide" type="button">Generar código</button>
             <div id="pairInviteCodeBox" class="pair-code-box" hidden>
-              <small>Código de vínculo</small>
+              <small>Tu código de vínculo</small>
               <strong id="pairInviteCode">------</strong>
-              <button id="copyPairCodeBtn" class="mini-btn" type="button">Copiar</button>
-              <span>Válido 7 días</span>
+              <button id="copyPairCodeBtn" class="mini-btn" type="button">Copiar código</button>
+              <span>Válido durante 7 días.</span>
             </div>
           </article>
 
           <form id="pairAcceptForm" class="pair-card">
-            <div class="compact-card-heading">
-              <strong>Usar un código</strong>
-              <small>Vincula esta cuenta.</small>
-            </div>
+            <div class="card-title"><span>💌</span><div><h4>Usar un código</h4><p>Escribe el código que te compartieron.</p></div></div>
             <label>
-              <span>Código</span>
+              <span>Código de 6 caracteres</span>
               <input id="pairCodeInput" maxlength="6" autocomplete="off" placeholder="ABC123" required />
             </label>
-            <button class="secondary-btn wide" type="submit">Vincular cuentas</button>
+            <button class="secondary-btn wide" type="submit">Vincular nuestras cuentas</button>
           </form>
         </div>
 
-        <div id="pairConnectedView" class="pair-connected pair-connected-clean" hidden>
+        <div id="pairConnectedView" class="pair-connected" hidden>
           <div id="pairSuccessBanner" class="pair-success-banner" hidden role="status" aria-live="polite">
             <span class="pair-success-icon">✓</span>
             <div>
-              <strong>DinoDúo conectado 💞</strong>
+              <strong>DinoDúo enlazado con éxito 💞</strong>
               <p id="pairSuccessText">Las dos cuentas ya están conectadas.</p>
             </div>
             <button id="dismissPairSuccessBtn" type="button" aria-label="Cerrar confirmación">×</button>
           </div>
 
-          <article class="pair-hero pair-profile-card">
+          <article class="pair-hero">
             <div class="pair-avatars" aria-hidden="true">
               <span id="pairAvatarMe">D</span>
               <i>♥</i>
               <span id="pairAvatarPartner">P</span>
             </div>
-            <div class="pair-profile-copy">
-              <small>DinoDúo</small>
+            <div>
+              <span class="eyebrow">DinoDúo conectado</span>
               <h4><span id="pairMeName">Tú</span> + <span id="pairPartnerName">Tu persona</span></h4>
+              <p>Su vínculo está activo. Chat y regalos tienen ahora su propio espacio, pero siguen perteneciendo a este mismo DinoDúo privado.</p>
+            </div>
+            <div class="pair-hero-actions">
               <span id="pairRealtimeStatus" class="pair-live-badge" data-state="connecting">Conectando…</span>
+              <div class="pair-quick-actions" aria-label="Acciones rápidas">
+                <button class="pair-quick-btn" data-open-tab="gift" type="button">🎟️ Crear cupón</button>
+                <button class="pair-quick-btn" data-open-tab="chat" type="button">💌 Ir al chat</button>
+              </div>
+              <div class="pair-unlink-panel">
+                <div>
+                  <strong>Administrar vínculo</strong>
+                  <small>Puedes cerrar este DinoDúo y volver a vincular tu cuenta después. Los recuerdos anteriores no se borran.</small>
+                </div>
+                <button id="unlinkPairBtn" class="pair-unlink-btn" type="button">💔 Desvincular DinoDúo</button>
+              </div>
             </div>
           </article>
-
-          <button id="unlinkPairBtn" class="pair-manage-link" type="button">Administrar vínculo</button>
         </div>
       </section>
 
@@ -599,6 +656,6 @@
 
   <script src="./js/intro-bootstrap.js?v=20260926-phase1-cinematic3" defer></script>
   <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
-  <script type="module" src="./js/app.js?v=20260926-phase2-proapp3"></script>
+  <script type="module" src="./js/app.js?v=20260926-phase2-restored1"></script>
 </body>
 </html>

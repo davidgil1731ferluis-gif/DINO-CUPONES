@@ -4517,3 +4517,85 @@ input,textarea,select,button{max-width:100%}
   }
   .pair-reply-preview{margin-bottom:7px}
 }
+
+
+/* === PHASE 2 RESTORE FULL EXPERIENCE 2026-09-26 === */
+.section-support-copy{
+  max-width:58ch;
+  margin:7px 0 0;
+  color:#817185;
+  font-size:.9rem;
+  line-height:1.6;
+}
+.chat-section-shell{width:min(980px,100%);margin:0 auto}
+.chat-section-heading{margin-bottom:18px}
+.chat-section-heading h3{margin:.2rem 0 0}
+.rich-lock-card .eyebrow{margin-bottom:1px}
+.rich-lock-card strong{font-size:1.35rem}
+.rich-lock-card p{max-width:43ch}
+
+.chat-subject-field{
+  display:grid;
+  gap:6px;
+  margin:0 0 8px;
+}
+.chat-subject-field>span{
+  color:#6b566f;
+  font-size:.7rem;
+  font-weight:800;
+}
+.chat-subject-field input{
+  width:100%;
+  min-height:40px;
+  padding:9px 12px;
+  border:1px solid #e6daea;
+  border-radius:13px;
+  background:#fff;
+  color:#4b334f;
+  outline:none;
+}
+.chat-subject-field input:focus{
+  border-color:#b894ce;
+  box-shadow:0 0 0 4px rgba(151,104,183,.09);
+}
+
+/* The full Phase 1 hero is intentionally restored. */
+.hero-dashboard{margin-bottom:20px}
+#muralWidget{margin:0 0 22px}
+.gift-page .section-heading,
+.chat-section-shell .section-heading,
+#pairTab>.section-heading,
+#muralTab>.section-heading,
+#couponsTab>.section-heading{
+  margin-top:26px;
+}
+.gift-form-card .card-title,
+.gift-history-card .card-title{
+  margin-bottom:18px;
+}
+.pair-connected .pair-hero{
+  grid-template-columns:auto minmax(0,1fr) minmax(250px,.7fr);
+}
+.pair-connected .pair-hero-actions{align-self:stretch}
+.pair-connected .pair-unlink-panel{margin-top:auto}
+
+@media(max-width:900px){
+  .pair-connected .pair-hero{grid-template-columns:1fr}
+}
+
+@media(max-width:760px){
+  .hero-dashboard{margin-bottom:14px}
+  #muralWidget{margin-bottom:16px}
+  .section-support-copy{font-size:.84rem}
+  .chat-section-shell,
+  .gift-page{width:100%}
+  .chat-section-heading{margin-bottom:12px}
+  .chat-subject-field{margin-bottom:7px}
+  .gift-page .section-heading,
+  .chat-section-shell .section-heading,
+  #pairTab>.section-heading,
+  #muralTab>.section-heading,
+  #couponsTab>.section-heading{
+    margin-top:18px;
+  }
+}

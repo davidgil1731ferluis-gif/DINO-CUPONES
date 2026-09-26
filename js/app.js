@@ -38,7 +38,7 @@ import {
   identifyPushUser,
   clearPushUser,
   onForegroundMessage
-} from './firebase-service.js?v=20260926-phase2-proapp3';
+} from './firebase-service.js?v=20260926-phase2-restored1';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -1510,7 +1510,7 @@ $('#pairMessageForm').onsubmit = async (event) => {
       senderUid: currentUser.uid,
       senderName: profile?.displayName || 'Dino',
       targetUid: partnerUid,
-      title: (profile?.displayName || 'Tu persona') + ' te escribió 💜',
+      title: $('#pairMessageTitle')?.value.trim() || ((profile?.displayName || 'Tu persona') + ' te escribió 💜'),
       body: $('#pairMessageBody').value.trim(),
       replyToId: replyingToMessage?.id || null,
       replyToBody: replyingToMessage?.body || null,

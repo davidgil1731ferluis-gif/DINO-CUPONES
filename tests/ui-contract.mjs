@@ -52,6 +52,10 @@ if (!app.includes('startPairRealtime')) errors.push('app.js no inicia la sincron
 if (!html.includes('id="pairRealtimeStatus"')) errors.push('Falta indicador visual de sincronización del DinoDúo.');
 if (!html.includes('id="unlinkPairDialog"')) errors.push('Falta confirmación propia para desvincular DinoDúo.');
 if (!html.includes('id="pairReplyPreview"')) errors.push('Falta vista previa para responder DinoMensajes.');
+if (!html.includes('class="hero-dashboard"')) errors.push('Falta el dashboard principal restaurado.');
+if (!html.includes('mural-widget-badge')) errors.push('Falta la identidad completa del DinoWidget.');
+if (!html.includes('data-open-tab="gift"')) errors.push('Falta acceso rápido a Regalar desde Nosotros.');
+if (!html.includes('data-open-tab="chat"')) errors.push('Falta acceso rápido al Chat desde Nosotros.');
 if (!app.includes('beginPairReply')) errors.push('Falta lógica para responder DinoMensajes.');
 if (!app.includes('replyToId')) errors.push('Los DinoMensajes no guardan referencia de respuesta.');
 if (!html.includes('id="chatTab"')) errors.push('Falta pestaña independiente de Chat.');

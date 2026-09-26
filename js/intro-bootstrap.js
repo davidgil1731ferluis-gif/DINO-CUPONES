@@ -111,7 +111,7 @@
     revealLetter();
   }
 
-  const APP_BUILD = '20260926-phase2-proapp3';
+  const APP_BUILD = '20260926-phase2-restored1';
   let updateReloading = false;
 
   async function checkForUpdate(forceReload = false) {
