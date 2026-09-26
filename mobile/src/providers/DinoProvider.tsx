@@ -2,10 +2,15 @@ import {
   addDoc,
   collection,
   doc,
+  getDoc,
   onSnapshot,
   query,
+  runTransaction,
   serverTimestamp,
+  setDoc,
+  Timestamp,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 import {
   onAuthStateChanged,
@@ -32,12 +37,24 @@ type DinoContextValue = {
   logout(): Promise<void>;
   sendMessage(body: string): Promise<void>;
   sendCoupon(input: { title: string; activity: string; expiresAt: Date }): Promise<void>;
+  createPairInvite(): Promise<string>;
+  acceptPairInvite(code: string): Promise<void>;
+  unlinkPair(): Promise<void>;
 };
 
 const DinoContext = createContext<DinoContextValue | null>(null);
 
 const mapDocs = <T,>(snapshot: any) =>
   snapshot.docs.map((item: any) => ({ id: item.id, ...item.data() })) as T[];
+
+function randomCode() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let index = 0; index < 6; index += 1) {
+    code += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  return code;
+}
 
 export function DinoProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
@@ -225,6 +242,85 @@ export function DinoProvider({ children }: { children: React.ReactNode }) {
         status: 'active',
         emoji: '💜',
         createdAt: serverTimestamp(),
+      });
+    },
+    createPairInvite: async () => {
+      if (!user) throw new Error('Debes iniciar sesión.');
+      if (pair) throw new Error('Ya tienes un DinoDúo activo.');
+
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        const code = randomCode();
+        const inviteRef = doc(db, 'pairInvites', code);
+        const existing = await getDoc(inviteRef);
+        if (existing.exists()) continue;
+
+        await setDoc(inviteRef, {
+          fromUid: user.uid,
+          fromName: displayName || 'Dino',
+          status: 'pending',
+          createdAt: serverTimestamp(),
+          expiresAt: Timestamp.fromDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)),
+        });
+        return code;
+      }
+
+      throw new Error('No se pudo generar un código único.');
+    },
+    acceptPairInvite: async (rawCode) => {
+      if (!user) throw new Error('Debes iniciar sesión.');
+      if (pair) throw new Error('Ya tienes un DinoDúo activo.');
+
+      const code = rawCode.trim().toUpperCase();
+      if (!code) throw new Error('Escribe el código de invitación.');
+
+      const inviteRef = doc(db, 'pairInvites', code);
+      const inviteSnap = await getDoc(inviteRef);
+      if (!inviteSnap.exists()) throw new Error('Código no encontrado.');
+
+      const invite = inviteSnap.data();
+      if (invite.status !== 'pending') throw new Error('Este código ya fue utilizado.');
+      if (invite.fromUid === user.uid) throw new Error('No puedes vincularte contigo mismo.');
+      if (invite.expiresAt?.toDate?.() < new Date()) throw new Error('Este código venció.');
+
+      const pairRef = doc(collection(db, 'pairs'));
+      const memberNames: Record<string, string> = {
+        [invite.fromUid]: invite.fromName || 'Tu persona',
+        [user.uid]: displayName || 'Dino',
+      };
+
+      const batch = writeBatch(db);
+      batch.set(pairRef, {
+        memberUids: [invite.fromUid, user.uid],
+        memberNames,
+        active: true,
+        inviteCode: code,
+        createdAt: serverTimestamp(),
+      });
+      batch.update(inviteRef, {
+        status: 'accepted',
+        toUid: user.uid,
+        toName: displayName || 'Dino',
+        pairId: pairRef.id,
+        acceptedAt: serverTimestamp(),
+      });
+      await batch.commit();
+    },
+    unlinkPair: async () => {
+      if (!user || !pair) throw new Error('No hay un DinoDúo activo.');
+      const pairRef = doc(db, 'pairs', pair.id);
+
+      await runTransaction(db, async (transaction) => {
+        const snapshot = await transaction.get(pairRef);
+        if (!snapshot.exists()) throw new Error('No se encontró el DinoDúo.');
+        const current = snapshot.data();
+        if (current.active === false || !current.memberUids?.includes(user.uid)) {
+          throw new Error('No puedes cerrar este vínculo.');
+        }
+        transaction.update(pairRef, {
+          active: false,
+          unlinkedBy: user.uid,
+          unlinkedAt: serverTimestamp(),
+        });
       });
     },
   };
