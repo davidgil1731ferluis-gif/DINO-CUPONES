@@ -17,7 +17,9 @@ export async function syncWidgets(snapshot: WidgetSnapshot) {
     },
     coupons: {
       count: active.length,
-      nextTitle: active[0]?.title || 'Sin cupones activos',
+      firstTitle: active[0]?.title || 'Sin cupones activos',
+      secondTitle: active[1]?.title || '',
+      thirdTitle: active[2]?.title || '',
       emoji: active[0]?.emoji || '🎟️',
     },
     messages: {
