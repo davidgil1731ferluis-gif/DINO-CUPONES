@@ -23,7 +23,7 @@
   <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js" crossorigin />
   <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./styles.css?v=20260926-phase2-proapp2" />
+  <link rel="stylesheet" href="./styles.css?v=20260926-phase2-proapp3" />
 </head>
 <body>
   <div id="toast" class="toast" aria-live="polite"></div>
@@ -264,7 +264,7 @@
         <div id="chatLockedView" class="feature-lock-card">
           <span class="feature-lock-icon">💬</span>
           <strong>Chat de DinoDúo</strong>
-          <p>Conecta las dos cuentas para iniciar una conversación privada.</p>
+          <p>Vincula tu DinoDúo para conversar.</p>
           <button class="primary-btn" data-open-tab="pair" type="button">Conectar DinoDúo</button>
         </div>
 
@@ -280,6 +280,13 @@
           <div id="pairConversation" class="pair-conversation professional-chat" aria-live="polite"></div>
 
           <form id="pairMessageForm" class="chat-composer">
+            <div id="pairReplyPreview" class="pair-reply-preview" hidden>
+              <div>
+                <strong id="pairReplyAuthor">Responder</strong>
+                <span id="pairReplyBody"></span>
+              </div>
+              <button id="cancelPairReplyBtn" type="button" aria-label="Cancelar respuesta">×</button>
+            </div>
             <div class="pair-message-presets" aria-label="Mensajes rápidos">
               <button type="button" data-pair-message-preset="Te extraño 💜">Te extraño 💜</button>
               <button type="button" data-pair-message-preset="Tengo un plan para nosotros 👀">Tengo un plan 👀</button>
@@ -300,7 +307,7 @@
         <div id="giftLockedView" class="feature-lock-card">
           <span class="feature-lock-icon">🎁</span>
           <strong>Regala un DinoCupón</strong>
-          <p>Primero conecta tu DinoDúo para enviar experiencias privadas.</p>
+          <p>Vincula tu DinoDúo para regalar cupones.</p>
           <button class="primary-btn" data-open-tab="pair" type="button">Conectar DinoDúo</button>
         </div>
 
@@ -323,7 +330,7 @@
             <section class="pair-card pair-sent-card gift-history-card">
               <div class="compact-card-heading">
                 <strong>Enviados a <span id="pairSentRecipientName">tu persona</span></strong>
-                <small>Historial reciente</small>
+                <small>Recientes</small>
               </div>
               <div id="pairSentCoupons" class="pair-sent-list"></div>
             </section>
@@ -335,7 +342,7 @@
         <div class="section-heading professional-heading mural-heading">
           <div>
             <h3>DinoMural</h3>
-            <p id="muralScopeLabel" class="mural-scope-label">Recuerdos privados.</p>
+            <p id="muralScopeLabel" class="mural-scope-label">Sus recuerdos.</p>
           </div>
           <button id="openUploadBtn" class="primary-btn compact" type="button">+ Recuerdo</button>
         </div>
@@ -592,6 +599,6 @@
 
   <script src="./js/intro-bootstrap.js?v=20260926-phase1-cinematic3" defer></script>
   <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
-  <script type="module" src="./js/app.js?v=20260926-phase2-proapp2"></script>
+  <script type="module" src="./js/app.js?v=20260926-phase2-proapp3"></script>
 </body>
 </html>

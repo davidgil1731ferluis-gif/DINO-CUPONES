@@ -38,7 +38,7 @@ import {
   identifyPushUser,
   clearPushUser,
   onForegroundMessage
-} from './firebase-service.js?v=20260926-phase2-proapp2';
+} from './firebase-service.js?v=20260926-phase2-proapp3';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -61,6 +61,7 @@ let stopPairSubscription = ()=>{};
 let stopPairMessageSubscription = ()=>{};
 let realtimePairId = null;
 let pairMessageRealtimePrimed = false;
+let replyingToMessage = null;
 let localPairMutationUntil = 0;
 let filter = 'active';
 let couponView = 'received';
@@ -340,6 +341,7 @@ function resetSessionState() {
   partnerName = '';
   pairSyncInFlight = false;
   localPairMutationUntil = 0;
+  replyingToMessage = null;
   filter = 'active';
   couponView = 'received';
   $$('.chip').forEach((item) => item.classList.toggle('is-active', item.dataset.filter === 'active'));
@@ -1116,6 +1118,7 @@ function renderPairWorkspace() {
   if (giftConnected) giftConnected.hidden=!hasPair;
 
   if (!hasPair) {
+    clearPairReply();
     renderChatUnreadBadge();
     return;
   }
@@ -1168,6 +1171,47 @@ function renderChatUnreadBadge() {
   badge.textContent=unread>9?'9+':String(unread);
 }
 
+
+function chatTimeLabel(value) {
+  return new Intl.DateTimeFormat('es-CO',{
+    hour:'2-digit',
+    minute:'2-digit'
+  }).format(new Date(value || Date.now()));
+}
+
+function clearPairReply() {
+  replyingToMessage=null;
+  const preview=$('#pairReplyPreview');
+  if (preview) preview.hidden=true;
+  const author=$('#pairReplyAuthor');
+  const body=$('#pairReplyBody');
+  if (author) author.textContent='';
+  if (body) body.textContent='';
+}
+
+function beginPairReply(messageId) {
+  const message=pairMessages.find((item)=>item.id===messageId);
+  if (!message) return;
+
+  replyingToMessage={
+    id:message.id,
+    senderUid:message.senderUid,
+    senderName:message.senderUid===currentUser?.uid
+      ? 'Tú'
+      : (message.senderName || partnerName || 'Tu persona'),
+    body:String(message.body || message.title || '').slice(0,160)
+  };
+
+  const preview=$('#pairReplyPreview');
+  const author=$('#pairReplyAuthor');
+  const body=$('#pairReplyBody');
+  if (author) author.textContent='Responder a ' + replyingToMessage.senderName;
+  if (body) body.textContent=replyingToMessage.body;
+  if (preview) preview.hidden=false;
+
+  $('#pairMessageBody')?.focus();
+}
+
 function renderPairConversation() {
   const box=$('#pairConversation');
   if (!box) return;
@@ -1175,7 +1219,7 @@ function renderPairConversation() {
   renderChatUnreadBadge();
 
   if (!pairMessages.length) {
-    box.innerHTML='<div class="chat-empty"><span>💌</span><strong>Aún no hay mensajes</strong><small>Escribe el primero.</small></div>';
+    box.innerHTML='<div class="chat-empty"><span>💌</span><strong>Sin mensajes todavía</strong><small>Escribe algo cuando quieras.</small></div>';
     return;
   }
 
@@ -1188,16 +1232,45 @@ function renderPairConversation() {
       : '';
     previousDay=day;
 
+    const reply=message.replyToBody
+      ? '<button class="pair-message-quote" type="button" data-reply-jump="'+escapeHtml(message.replyToId || '')+'">'+
+          '<strong>'+escapeHtml(message.replyToSenderName || 'Mensaje')+'</strong>'+
+          '<span>'+escapeHtml(message.replyToBody)+'</span>'+
+        '</button>'
+      : '';
+
     const readState=mine
-      ? '<span class="pair-message-status '+(message.readAt?'is-read':'')+'">'+(message.readAt?'✓✓ Leído':'✓ Enviado')+'</span>'
+      ? '<span class="pair-message-status '+(message.readAt?'is-read':'')+'">'+(message.readAt?'✓✓':'✓')+'</span>'
       : '';
 
     return separator+
-      '<article class="pair-message '+(mine?'is-mine':'is-theirs')+'">'+
+      '<article class="pair-message '+(mine?'is-mine':'is-theirs')+'" data-message-id="'+escapeHtml(message.id)+'">'+
+        reply+
         '<p>'+escapeHtml(message.body || message.title || '')+'</p>'+
-        '<footer><time>'+fmtDateTime(message.createdAt || new Date())+'</time>'+readState+'</footer>'+
+        '<footer>'+
+          '<button class="pair-message-reply-btn" type="button" data-reply-message-id="'+escapeHtml(message.id)+'" aria-label="Responder mensaje">↩</button>'+
+          '<time>'+escapeHtml(chatTimeLabel(message.createdAt || new Date()))+'</time>'+
+          readState+
+        '</footer>'+
       '</article>';
   }).join('');
+
+  box.querySelectorAll('[data-reply-message-id]').forEach((button)=>{
+    button.onclick=()=>beginPairReply(button.dataset.replyMessageId);
+  });
+
+  box.querySelectorAll('[data-reply-jump]').forEach((button)=>{
+    button.onclick=()=>{
+      const id=button.dataset.replyJump;
+      if (!id) return;
+      const target=box.querySelector('[data-message-id="'+CSS.escape(id)+'"]');
+      if (!target) return;
+      target.scrollIntoView({behavior:'smooth',block:'center'});
+      target.classList.remove('is-highlighted');
+      requestAnimationFrame(()=>target.classList.add('is-highlighted'));
+      window.setTimeout(()=>target.classList.remove('is-highlighted'),900);
+    };
+  });
 
   requestAnimationFrame(()=>{
     box.scrollTop=box.scrollHeight;
@@ -1410,6 +1483,8 @@ function updatePairMessageCounter() {
   counter.textContent=String(input.value.length) + '/300';
 }
 
+$('#cancelPairReplyBtn').onclick=clearPairReply;
+
 $('#pairMessageBody').addEventListener('input',updatePairMessageCounter);
 updatePairMessageCounter();
 
@@ -1436,10 +1511,14 @@ $('#pairMessageForm').onsubmit = async (event) => {
       senderName: profile?.displayName || 'Dino',
       targetUid: partnerUid,
       title: (profile?.displayName || 'Tu persona') + ' te escribió 💜',
-      body: $('#pairMessageBody').value.trim()
+      body: $('#pairMessageBody').value.trim(),
+      replyToId: replyingToMessage?.id || null,
+      replyToBody: replyingToMessage?.body || null,
+      replyToSenderName: replyingToMessage?.senderName || null
     });
 
     event.target.reset();
+    clearPairReply();
     updatePairMessageCounter();
 
     if (!realtimePairId) {

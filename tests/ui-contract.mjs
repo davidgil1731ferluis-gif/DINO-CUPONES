@@ -51,6 +51,9 @@ if (!service.includes('export function subscribePairMessages')) errors.push('Fal
 if (!app.includes('startPairRealtime')) errors.push('app.js no inicia la sincronización en vivo del DinoDúo.');
 if (!html.includes('id="pairRealtimeStatus"')) errors.push('Falta indicador visual de sincronización del DinoDúo.');
 if (!html.includes('id="unlinkPairDialog"')) errors.push('Falta confirmación propia para desvincular DinoDúo.');
+if (!html.includes('id="pairReplyPreview"')) errors.push('Falta vista previa para responder DinoMensajes.');
+if (!app.includes('beginPairReply')) errors.push('Falta lógica para responder DinoMensajes.');
+if (!app.includes('replyToId')) errors.push('Los DinoMensajes no guardan referencia de respuesta.');
 if (!html.includes('id="chatTab"')) errors.push('Falta pestaña independiente de Chat.');
 if (!html.includes('id="giftTab"')) errors.push('Falta pestaña independiente para regalar cupones.');
 if (!html.includes('id="chatTabBadge"')) errors.push('Falta contador de mensajes no leídos en Chat.');
@@ -80,7 +83,7 @@ const required = [
   'skipIntroBtn','openLetterBtn','continueToLoginBtn',
   'loginForm','registerForm','showLoginBtn','showRegisterBtn','demoAccessBtn',
   'logoutBtn','notificationBtn','openUploadBtn','generatePairCodeBtn','unlinkPairBtn','confirmUnlinkPairBtn','cancelUnlinkPairBtn','keepPairLinkedBtn','updateAppBtn','testPushBtn','keepSessionCheckbox','muralWidgetOpenBtn',
-  'pairCouponForm','pairMessageForm','couponForm','messageForm'
+  'pairCouponForm','pairMessageForm','cancelPairReplyBtn','couponForm','messageForm'
 ];
 for (const id of required) {
   if (!ids.includes(id)) errors.push('Falta control obligatorio: #' + id);
