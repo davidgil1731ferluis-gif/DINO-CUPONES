@@ -1,6 +1,6 @@
 {
   "name": "dinocupones-mobile",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
@@ -24,7 +24,8 @@
     "expo-widgets": "~57.0.21",
     "firebase": "12.19.0",
     "react": "19.2.3",
-    "react-native": "0.86.0"
+    "react-native": "0.86.0",
+    "expo-clipboard": "~57.0.2"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",

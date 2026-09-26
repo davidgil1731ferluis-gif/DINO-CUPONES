@@ -40,12 +40,22 @@ type DinoContextValue = {
   createPairInvite(): Promise<string>;
   acceptPairInvite(code: string): Promise<void>;
   unlinkPair(): Promise<void>;
+  createPairInvite(): Promise<string>;
+  acceptPairInvite(code: string): Promise<void>;
+  unlinkPair(): Promise<void>;
 };
 
 const DinoContext = createContext<DinoContextValue | null>(null);
 
 const mapDocs = <T,>(snapshot: any) =>
   snapshot.docs.map((item: any) => ({ id: item.id, ...item.data() })) as T[];
+
+function randomPairCode() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from({ length: 6 }, () =>
+    alphabet[Math.floor(Math.random() * alphabet.length)]
+  ).join('');
+}
 
 function randomCode() {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
